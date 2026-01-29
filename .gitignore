@@ -1,0 +1,25 @@
+# Build artifacts
+/out/
+/build/**/*.iso
+/build/**/*.img
+/build/**/*.squashfs
+
+# Object files / binaries
+*.o
+*.a
+*.so
+*.bin
+
+# Temporary files
+*.tmp
+*.log
+*.swp
+*~
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
