@@ -1,8 +1,12 @@
 # ProbeOS
 
-ProbeOS is a lightweight, bootable Linux environment for hardware inspection, diagnostics, and performance benchmarking.
+ProbeOS is a lightweight, bootable Linux environment for hardware inspection,
+diagnostics, and performance benchmarking.
 
-It is designed to boot quickly from USB or CD and provide clear, trustworthy insight into system hardware without requiring installation or modifying disks.
+It is designed to boot quickly from USB or CD and provide clear, trustworthy
+insight into system hardware without requiring installation or modifying disks.
+
+Project homepage: https://probeos.eu
 
 ---
 
@@ -13,18 +17,6 @@ It is designed to boot quickly from USB or CD and provide clear, trustworthy ins
 - Fully redistributable and open
 - GUI and text-based (TUI) operation
 - Suitable for diagnostics, verification, and benchmarking
-
----
-
-## Features (Planned)
-
-- Detailed hardware discovery (CPU, memory, storage, GPU, firmware)
-- Text and GUI-based system summaries
-- Read-only storage health inspection (SMART, NVMe)
-- Stress testing and benchmarking (CPU, memory, disk, GPU)
-- Exportable reports (text / HTML)
-- BIOS and UEFI support
-- Optional compatibility and firmware testing
 
 ---
 
@@ -43,7 +35,7 @@ Copyright © 2026 Ploos AS
 
 ---
 
-## Acknowledgements
+## Links
 
-ProbeOS builds on the work of many open-source projects and tools.  
-Third-party licenses are respected and documented separately.
+- Project site: https://probeos.eu
+- Source code: https://github.com/ploos-as/probeos
