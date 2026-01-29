@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 set -e
 
-# ProbeOS Alpine ISO build script (v0.2)
+# ProbeOS Alpine-native ISO build
 # https://probeos.eu
 # © 2026 Ploos AS
 
-ROOTDIR="$(pwd)"
-WORKDIR="$ROOTDIR/work"
-ISODIR="$ROOTDIR/iso"
-OUTDIR="$ROOTDIR/out"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+WORKDIR="$REPO_ROOT/build/alpine/work"
+ISODIR="$REPO_ROOT/build/alpine/iso"
+OUTDIR="$REPO_ROOT/out"
+
+ARCH="x86_64"
+ISO_NAME="probeos-${ARCH}.iso"
+PACKAGES_FILE="$SCRIPT_DIR/packages.txt"
 
 ALPINE_VERSION="3.19"
 ARCH="x86_64"
