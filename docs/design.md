@@ -1,5 +1,9 @@
 # ProbeOS — Design Overview
 
+ProbeOS is developed and maintained by **Ploos AS**.
+
+Project homepage: https://probeos.eu
+
 ## 1. Purpose
 
 ProbeOS is a lightweight, bootable Linux-based operating system designed for
@@ -164,6 +168,9 @@ Branding is intentionally minimal and non-intrusive. Attribution may appear in:
 - About dialogs
 - Generated reports
 - Documentation
+
+Primary project reference:
+- https://probeos.eu
 
 ---
 
