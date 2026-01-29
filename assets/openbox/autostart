@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# ProbeOS Openbox autostart
+# https://probeos.eu
+# © 2026 Ploos AS
+
+# Set wallpaper
+feh --bg-scale /usr/share/probeos/wallpaper.png &
+
+# Panel
+tint2 &
+
+# Launch ProbeOS GUI
+/usr/local/bin/gui-menu.sh &
