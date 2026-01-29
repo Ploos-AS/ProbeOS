@@ -1,0 +1,74 @@
+# Base system
+alpine-base
+busybox
+openrc
+
+# Core utilities
+bash
+coreutils
+util-linux
+procps
+pciutils
+usbutils
+iproute2
+ethtool
+dmidecode
+hwinfo
+inxi
+
+# Sensors and power
+lm-sensors
+powertop
+
+# Storage and disk tools
+smartmontools
+nvme-cli
+hdparm
+fio
+lsblk
+
+# Firmware and platform
+fwts
+efibootmgr
+acpidump
+
+# Benchmarking and stress testing
+stress-ng
+sysbench
+mbw
+
+# TUI utilities
+dialog
+ncurses
+
+# X11 and GUI stack
+xorg-server
+xinit
+mesa
+mesa-dri-gallium
+openbox
+tint2
+rxvt-unicode
+gtk+3.0
+lxappearance
+
+# GUI hardware tools
+hardinfo
+gsmartcontrol
+hwloc
+hwloc-gui
+
+# GPU / graphics tools
+glxinfo
+mesa-utils
+kmscube
+vulkan-tools
+nvtop
+
+# Boot tools
+grub
+grub-efi
+memtest86+
+
+# Networking (optional but useful)
+iperf3
