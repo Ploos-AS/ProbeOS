@@ -13,22 +13,38 @@ ISODIR="$REPO_ROOT/build/alpine/iso"
 OUTDIR="$REPO_ROOT/out"
 
 ARCH="${ARCH:-x86_64}"
-ISO_NAME="probeos-${ARCH}.iso"
+ISO_NAME="probeos-${ARCH}-grub.iso"
 PACKAGES_FILE="$SCRIPT_DIR/packages.txt"
+APKDIR="$ISODIR/apks/$ARCH"
+MODLOOPDIR="$REPO_ROOT/build/alpine/modloop"
+KEYDIR="$REPO_ROOT/build/alpine/keys"
+ALPINE_MAIN="https://dl-cdn.alpinelinux.org/alpine/v3.19/main"
+ALPINE_COMMUNITY="https://dl-cdn.alpinelinux.org/alpine/v3.19/community"
+
+for command_name in abuild-sign apk chroot grub-mkrescue mksquashfs openssl tar; do
+    command -v "$command_name" >/dev/null 2>&1 || {
+        echo "[!] Missing build command: $command_name" >&2
+        echo "[!] Use build/alpine/build-container.sh for a reproducible build." >&2
+        exit 1
+    }
+done
 
 echo "[*] Cleaning previous builds"
-rm -rf "$WORKDIR" "$ISODIR" "$OUTDIR"
+rm -rf "$WORKDIR" "$ISODIR" "$MODLOOPDIR" "$KEYDIR"
 mkdir -p "$WORKDIR" "$ISODIR" "$OUTDIR"
+rm -f "$OUTDIR/$ISO_NAME"
 
 echo "[*] Installing Alpine base system and packages"
 sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' "$PACKAGES_FILE" | xargs apk --root "$WORKDIR" \
     --initdb \
+    --no-scripts \
     --quiet \
     --arch "$ARCH" \
     --keys-dir /etc/apk/keys \
-    --repository https://dl-cdn.alpinelinux.org/alpine/v3.19/main \
-    --repository https://dl-cdn.alpinelinux.org/alpine/v3.19/community \
+    --repository "$ALPINE_MAIN" \
+    --repository "$ALPINE_COMMUNITY" \
     add
+chroot "$WORKDIR" /bin/busybox --install -s
 
 echo "[*] Configuring system"
 echo "probeos" > "$WORKDIR/etc/hostname"
@@ -39,12 +55,43 @@ https://probeos.eu
 © 2026 Ploos AS
 EOF
 
-echo "root:probeos" | chroot "$WORKDIR" chpasswd
+echo "root:probeos" | chroot "$WORKDIR" /bin/busybox chpasswd
 
 echo "[*] Enabling essential services"
 chroot "$WORKDIR" rc-update add devfs sysinit
 chroot "$WORKDIR" rc-update add mdev sysinit
 chroot "$WORKDIR" rc-update add hwdrivers sysinit
+chroot "$WORKDIR" rc-update add hostname boot
+chroot "$WORKDIR" rc-update add local default
+
+mkdir -p "$WORKDIR/etc/local.d"
+cat > "$WORKDIR/etc/local.d/probe-identify.start" <<'EOF'
+#!/bin/sh
+if [ ! -x /usr/local/bin/probe-identify ]; then
+    echo 'PROBEOS_BOOT_FAIL probe-identify=missing' >/dev/console
+    exit 1
+fi
+mkdir -p /run/probeos
+if ! /usr/local/bin/probe-identify >/run/probeos/probe-identify.log 2>&1; then
+    echo 'PROBEOS_BOOT_FAIL probe-identify=failed' >/dev/console
+    exit 1
+fi
+if ! jq empty /run/probeos/report.json >/dev/null 2>&1; then
+    echo 'PROBEOS_BOOT_FAIL report_json=invalid' >/dev/console
+    exit 1
+fi
+if [ ! -s /run/probeos/report.txt ]; then
+    echo 'PROBEOS_BOOT_FAIL report_txt=missing' >/dev/console
+    exit 1
+fi
+boot_mode=$(jq -er '.firmware.boot_mode | select(. == "BIOS" or . == "UEFI")' \
+    /run/probeos/report.json) || {
+    echo 'PROBEOS_BOOT_FAIL firmware=invalid' >/dev/console
+    exit 1
+}
+echo "PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid firmware=$boot_mode" >/dev/console
+EOF
+chmod +x "$WORKDIR/etc/local.d/probe-identify.start"
 
 # =========================================
 # Install assets (logo, wallpaper, splash)
@@ -91,7 +138,40 @@ chmod +x "$WORKDIR/usr/local/bin/probe-identify"
 echo "[*] Creating initramfs"
 set -- "$WORKDIR"/lib/modules/*
 KERNEL_VERSION=${1##*/}
+chroot "$WORKDIR" depmod "$KERNEL_VERSION"
 chroot "$WORKDIR" mkinitfs -o /boot/initramfs-probeos "$KERNEL_VERSION"
+
+# =========================================
+# Alpine-native diskless live system
+# =========================================
+echo "[*] Creating offline APK repository"
+mkdir -p "$ISODIR/boot"
+mkdir -p "$APKDIR"
+mapfile -t INSTALLED_PACKAGES < <(
+    awk '/^P:/{print substr($0, 3)}' "$WORKDIR/lib/apk/db/installed"
+)
+apk fetch --quiet --no-cache --arch "$ARCH" --keys-dir /etc/apk/keys \
+    --repository "$ALPINE_MAIN" --repository "$ALPINE_COMMUNITY" \
+    --output "$APKDIR" "${INSTALLED_PACKAGES[@]}"
+apk index --rewrite-arch "$ARCH" --output "$APKDIR/APKINDEX.tar.gz" "$APKDIR"/*.apk
+mkdir -p "$KEYDIR" "$WORKDIR/etc/apk/keys"
+openssl genrsa -out "$KEYDIR/probeos-build.rsa" 2048 >/dev/null 2>&1
+openssl rsa -in "$KEYDIR/probeos-build.rsa" -pubout \
+    -out "$KEYDIR/probeos-build.rsa.pub" >/dev/null 2>&1
+abuild-sign -k "$KEYDIR/probeos-build.rsa" "$APKDIR/APKINDEX.tar.gz"
+cp "$KEYDIR/probeos-build.rsa.pub" "$WORKDIR/etc/apk/keys/"
+touch "$ISODIR/apks/.boot_repository"
+cp "$WORKDIR/etc/alpine-release" "$ISODIR/.alpine-release"
+
+echo "[*] Creating kernel modloop"
+mkdir -p "$MODLOOPDIR/modules"
+cp -a "$WORKDIR/lib/modules/." "$MODLOOPDIR/modules/"
+mksquashfs "$MODLOOPDIR" "$ISODIR/boot/modloop-lts" -comp xz -noappend -quiet
+
+echo "[*] Creating ProbeOS APK overlay"
+rm -f "$WORKDIR/etc/apk/repositories"
+tar -C "$WORKDIR" -czf "$ISODIR/probeos.apkovl.tar.gz" \
+    etc usr/local usr/share/probeos
 
 # =========================================
 # ISO preparation
@@ -101,21 +181,17 @@ cp "$WORKDIR/boot/vmlinuz-lts" "$ISODIR/boot/vmlinuz"
 cp "$WORKDIR/boot/initramfs-probeos" "$ISODIR/boot/initramfs"
 
 cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
-set default=0
+set default=1
 set timeout=5
 
 menuentry "ProbeOS (GUI)" {
-    linux /boot/vmlinuz quiet
+    linux /boot/vmlinuz modules=loop,squashfs,sd-mod,usb-storage modloop=/boot/modloop-lts quiet
     initrd /boot/initramfs
 }
 
 menuentry "ProbeOS (Text / Curses)" {
-    linux /boot/vmlinuz quiet text
+    linux /boot/vmlinuz modules=loop,squashfs,sd-mod,usb-storage modloop=/boot/modloop-lts console=tty0 console=ttyS0,115200 text
     initrd /boot/initramfs
-}
-
-menuentry "Memory Test (Memtest86+)" {
-    linux16 /boot/memtest86+.bin
 }
 EOF
 
@@ -124,6 +200,8 @@ EOF
 # =========================================
 echo "[*] Creating ISO image"
 
-grub-mkrescue -o "$OUTDIR/$ISO_NAME" "$ISODIR"
+grub-mkrescue -o "$OUTDIR/$ISO_NAME" "$ISODIR" -- -volid PROBEOS
+
+rm -rf "$KEYDIR"
 
 echo "[✓] ISO created at $OUTDIR/$ISO_NAME"

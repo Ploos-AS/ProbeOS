@@ -32,6 +32,29 @@ human-readable report and stable-schema JSON under `/run/probeos`. See
 [`docs/hardware-identification.md`](docs/hardware-identification.md) for data
 sources, Windows OEM-license handling, privacy guidance, and limitations.
 
+## Build and boot
+
+The supported live-ISO build runs in Docker and pins Alpine 3.19:
+
+```sh
+build/alpine/build-container.sh
+tests/iso-layout.sh out/probeos-x86_64-grub.iso
+tests/qemu-smoke.sh out/probeos-x86_64-grub.iso bios
+tests/qemu-smoke.sh out/probeos-x86_64-grub.iso uefi
+# Optional legacy x86 qualification:
+ARCH=x86 build/alpine/build-container.sh
+QEMU=qemu-system-i386 tests/qemu-smoke.sh out/probeos-x86-grub.iso bios
+```
+
+The BIOS smoke test needs `qemu-system-x86_64`. The UEFI test additionally
+needs OVMF at `/usr/share/OVMF`, or `OVMF_CODE` and `OVMF_VARS` set to suitable
+firmware files. Both tests disable guest networking and write their serial logs
+under `${TMPDIR:-/tmp}` unless a log path is passed as the third argument.
+
+The resulting root login password is `probeos`. See
+[`docs/build-audit.md`](docs/build-audit.md) for the live-media architecture,
+qualification evidence, and current limitations.
+
 ---
 
 ## License

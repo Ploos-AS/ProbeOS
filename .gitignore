@@ -3,6 +3,10 @@
 /build/**/*.iso
 /build/**/*.img
 /build/**/*.squashfs
+/build/alpine/iso/
+/build/alpine/keys/
+/build/alpine/modloop/
+/build/alpine/work/
 
 # Object files / binaries
 *.o

@@ -45,6 +45,4 @@ hwloc
 mesa-utils
 kmscube
 vulkan-tools
-grub
-grub-efi
 iperf3
