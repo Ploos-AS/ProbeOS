@@ -34,17 +34,28 @@ sources, Windows OEM-license handling, privacy guidance, and limitations.
 
 ## Build and boot
 
-The supported live-ISO build runs in Docker and pins Alpine 3.19:
+The supported live-ISO build runs in Docker and pins Alpine 3.19. GRUB is the
+modern BIOS/UEFI path; SYSLINUX is retained as a BIOS-only compatibility path
+for legacy systems:
 
 ```sh
 build/alpine/build-container.sh
+BOOTLOADER=syslinux build/alpine/build-container.sh
+ARCH=x86 build/alpine/build-container.sh
+ARCH=x86 BOOTLOADER=syslinux build/alpine/build-container.sh
 tests/iso-layout.sh out/probeos-x86_64-grub.iso
+tests/iso-layout.sh out/probeos-x86_64-syslinux.iso
 tests/qemu-smoke.sh out/probeos-x86_64-grub.iso bios
 tests/qemu-smoke.sh out/probeos-x86_64-grub.iso uefi
 # Optional legacy x86 qualification:
 ARCH=x86 build/alpine/build-container.sh
 QEMU=qemu-system-i386 tests/qemu-smoke.sh out/probeos-x86-grub.iso bios
 ```
+
+These commands produce `probeos-x86_64-grub.iso`,
+`probeos-x86_64-syslinux.iso`, `probeos-x86-grub.iso`, and
+`probeos-x86-syslinux.iso` under `out/`. SYSLINUX configuration is maintained
+at [`boot/syslinux/isolinux.cfg`](boot/syslinux/isolinux.cfg).
 
 The BIOS smoke test needs `qemu-system-x86_64`. The UEFI test additionally
 needs OVMF at `/usr/share/OVMF`, or `OVMF_CODE` and `OVMF_VARS` set to suitable

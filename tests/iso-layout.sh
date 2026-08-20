@@ -10,13 +10,23 @@ case $(basename "$ISO") in
 esac
 
 listing=$(xorriso -indev "$ISO" -find / -type f -exec lsdl 2>/dev/null)
-grub_cfg=$(mktemp "${TMPDIR:-/tmp}/probeos-grub.cfg.XXXXXX")
-trap 'rm -f "$grub_cfg"' EXIT
-xorriso -osirrox on -indev "$ISO" -extract /boot/grub/grub.cfg "$grub_cfg" >/dev/null 2>&1
+boot_cfg=$(mktemp "${TMPDIR:-/tmp}/probeos-boot.cfg.XXXXXX")
+trap 'rm -f "$boot_cfg"' EXIT
+case $(basename "$ISO") in
+    *-grub.iso)
+        bootloader=grub
+        config_path=/boot/grub/grub.cfg
+        ;;
+    *-syslinux.iso)
+        bootloader=syslinux
+        config_path=/boot/syslinux/isolinux.cfg
+        ;;
+    *) echo "cannot determine ISO bootloader from filename: $ISO" >&2; exit 2 ;;
+esac
+xorriso -osirrox on -indev "$ISO" -extract "$config_path" "$boot_cfg" >/dev/null 2>&1
 for path in \
     '/.alpine-release' \
     '/apks/.boot_repository' \
-    '/boot/grub/grub.cfg' \
     '/boot/initramfs' \
     '/boot/memtest/mt86plus' \
     '/boot/modloop-lts' \
@@ -24,9 +34,31 @@ for path in \
     '/probeos.apkovl.tar.gz'; do
     grep -Fq "'$path'" <<<"$listing" || { echo "ISO file missing: $path" >&2; exit 1; }
 done
+grep -Fq "'$config_path'" <<<"$listing" || { echo "boot config missing: $config_path" >&2; exit 1; }
 grep -Fq "/apks/$arch/APKINDEX.tar.gz" <<<"$listing" || { echo 'offline APK index missing' >&2; exit 1; }
-grep -Fq 'ProbeOS - Memory Test (Memtest86+)' "$grub_cfg" || {
-    echo 'Memtest86+ GRUB entry missing' >&2
+grep -Fq 'ProbeOS - Memory Test (Memtest86+)' "$boot_cfg" || {
+    echo "Memtest86+ $bootloader entry missing" >&2
     exit 1
 }
+if [[ $bootloader == syslinux ]]; then
+    for path in isolinux.bin ldlinux.c32 menu.c32 libcom32.c32 libutil.c32; do
+        grep -Fq "'/boot/syslinux/$path'" <<<"$listing" || {
+            echo "SYSLINUX file missing: /boot/syslinux/$path" >&2
+            exit 1
+        }
+    done
+    grep -Eq '^DEFAULT[[:space:]]+probeos$' "$boot_cfg" || {
+        echo 'normal ProbeOS is not the SYSLINUX default' >&2
+        exit 1
+    }
+    boot_report=$(xorriso -indev "$ISO" -report_el_torito plain -report_system_area plain 2>&1)
+    grep -Fq 'El Torito boot img :   1  BIOS  y' <<<"$boot_report" || {
+        echo 'bootable BIOS El Torito image missing' >&2
+        exit 1
+    }
+    grep -Fq 'System area summary: MBR isohybrid' <<<"$boot_report" || {
+        echo 'SYSLINUX isohybrid MBR missing' >&2
+        exit 1
+    }
+fi
 echo "ok - ISO layout contains Alpine live media and ProbeOS overlay"

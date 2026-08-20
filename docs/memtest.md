@@ -33,15 +33,13 @@ upstream release member rather than maintaining an unreviewed source patch.
 
 ## Boot mechanism
 
-The GRUB entry is `ProbeOS - Memory Test (Memtest86+)`. It invokes the upstream
-`mt86plus` image directly with GRUB's `linux` handover command; no Linux kernel,
-initramfs, APK installation, or network is involved. The normal ProbeOS text
-entry remains the default (`set default=1`), so Memtest only runs when selected.
+The GRUB and SYSLINUX entries are both `ProbeOS - Memory Test (Memtest86+)`.
+GRUB uses its `linux` handover command; SYSLINUX uses `LINUX
+/boot/memtest/mt86plus` with no initrd. In both cases the upstream image starts
+directly, without a Linux userspace, APK installation, or network. Normal
+ProbeOS remains the default.
 
-The payload is present on the ISO at `/boot/memtest/mt86plus`. The same explicit
-path is suitable for a future SYSLINUX entry; the expected legacy configuration
-is a `LINUX /boot/memtest/mt86plus` (or equivalent `KERNEL`) entry with no
-initrd.
+The payload is present on every ISO at `/boot/memtest/mt86plus`.
 
 ## Qualification
 
@@ -54,6 +52,8 @@ Memtest entry, run QEMU with `-nic none`, and require serial output containing
 | x86_64 SeaBIOS + GRUB | `mt86p_810_x86_64` | PASS: active v8.10 test screen |
 | x86_64 OVMF + GRUB | `mt86p_810_x86_64` | PASS: active v8.10 test screen |
 | x86 SeaBIOS + GRUB | `mt86p_810_i586` | PASS: active v8.10 x32 test screen |
+| x86_64 SeaBIOS + SYSLINUX | `mt86p_810_x86_64` | PASS: active v8.10 x64 test screen |
+| x86 SeaBIOS + SYSLINUX | `mt86p_810_i586` | PASS: active v8.10 x32 test screen |
 | x86 IA32 UEFI | `mt86p_810_i586` | Upstream-supported; not qualified because no IA32 OVMF firmware is installed |
 
 IA32 UEFI is not presented as a separate menu option: the architecture's
@@ -72,4 +72,6 @@ QEMU=qemu-system-i386 tests/memtest-smoke.sh out/probeos-x86-grub.iso bios
 ```
 
 The final distributed x86_64 and x86 ISOs are built again without
-`GRUB_DEFAULT`, preserving normal ProbeOS as the default boot entry.
+`GRUB_DEFAULT` or `SYSLINUX_DEFAULT`, preserving normal ProbeOS as the default
+boot entry. For a temporary SYSLINUX Memtest qualification build, use
+`BOOTLOADER=syslinux SYSLINUX_DEFAULT=memtest` (and `ARCH=x86` for i586).

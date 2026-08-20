@@ -13,7 +13,12 @@ ISODIR="$REPO_ROOT/build/alpine/iso"
 OUTDIR="$REPO_ROOT/out"
 
 ARCH="${ARCH:-x86_64}"
-ISO_NAME="probeos-${ARCH}-grub.iso"
+BOOTLOADER="${BOOTLOADER:-grub}"
+case "$BOOTLOADER" in
+    grub|syslinux) ;;
+    *) echo "[!] Unsupported bootloader: $BOOTLOADER" >&2; exit 1 ;;
+esac
+ISO_NAME="probeos-${ARCH}-${BOOTLOADER}.iso"
 PACKAGES_FILE="$SCRIPT_DIR/packages.txt"
 APKDIR="$ISODIR/apks/$ARCH"
 MODLOOPDIR="$REPO_ROOT/build/alpine/modloop"
@@ -30,7 +35,13 @@ case "$ARCH" in
     *) echo "[!] Unsupported Memtest86+ architecture: $ARCH" >&2; exit 1 ;;
 esac
 
-for command_name in abuild-sign apk chroot curl grub-mkrescue mksquashfs openssl sha256sum tar unzip; do
+required_commands=(abuild-sign apk chroot curl mksquashfs openssl sha256sum tar unzip)
+if [ "$BOOTLOADER" = grub ]; then
+    required_commands+=(grub-mkrescue)
+else
+    required_commands+=(xorriso)
+fi
+for command_name in "${required_commands[@]}"; do
     command -v "$command_name" >/dev/null 2>&1 || {
         echo "[!] Missing build command: $command_name" >&2
         echo "[!] Use build/alpine/build-container.sh for a reproducible build." >&2
@@ -200,11 +211,12 @@ cp "$MEMTEST_DIR/mt86plus" "$ISODIR/boot/memtest/mt86plus"
 # =========================================
 # ISO preparation
 # =========================================
-mkdir -p "$ISODIR/boot/grub"
 cp "$WORKDIR/boot/vmlinuz-lts" "$ISODIR/boot/vmlinuz"
 cp "$WORKDIR/boot/initramfs-probeos" "$ISODIR/boot/initramfs"
 
-cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
+if [ "$BOOTLOADER" = grub ]; then
+    mkdir -p "$ISODIR/boot/grub"
+    cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
 set default=$GRUB_DEFAULT
 set timeout=5
 
@@ -222,13 +234,45 @@ menuentry "ProbeOS - Memory Test (Memtest86+)" {
     linux /boot/memtest/mt86plus console=ttyS0,115200
 }
 EOF
+else
+    SYSLINUX_DIR="$ISODIR/boot/syslinux"
+    SYSLINUX_SHARE=/usr/share/syslinux
+    mkdir -p "$SYSLINUX_DIR"
+    cp "$REPO_ROOT/boot/syslinux/isolinux.cfg" "$SYSLINUX_DIR/isolinux.cfg"
+    if [ -n "${SYSLINUX_DEFAULT:-}" ]; then
+        sed -i "s/^DEFAULT .*/DEFAULT $SYSLINUX_DEFAULT/" "$SYSLINUX_DIR/isolinux.cfg"
+    fi
+    for syslinux_file in isolinux.bin ldlinux.c32 menu.c32 libcom32.c32 libutil.c32; do
+        [ -r "$SYSLINUX_SHARE/$syslinux_file" ] || {
+            echo "[!] Missing SYSLINUX build artifact: $SYSLINUX_SHARE/$syslinux_file" >&2
+            exit 1
+        }
+        cp "$SYSLINUX_SHARE/$syslinux_file" "$SYSLINUX_DIR/"
+    done
+    [ -r "$SYSLINUX_SHARE/isohdpfx.bin" ] || {
+        echo "[!] Missing SYSLINUX hybrid MBR: $SYSLINUX_SHARE/isohdpfx.bin" >&2
+        exit 1
+    }
+fi
 
 # =========================================
 # Build ISO
 # =========================================
 echo "[*] Creating ISO image"
 
-grub-mkrescue -o "$OUTDIR/$ISO_NAME" "$ISODIR" -- -volid PROBEOS
+if [ "$BOOTLOADER" = grub ]; then
+    grub-mkrescue -o "$OUTDIR/$ISO_NAME" "$ISODIR" -- -volid PROBEOS
+else
+    xorriso -as mkisofs \
+        -o "$OUTDIR/$ISO_NAME" \
+        -volid PROBEOS \
+        -isohybrid-mbr /usr/share/syslinux/isohdpfx.bin \
+        -partition_offset 16 \
+        -c boot/syslinux/boot.cat \
+        -b boot/syslinux/isolinux.bin \
+        -no-emul-boot -boot-load-size 4 -boot-info-table \
+        "$ISODIR"
+fi
 
 rm -rf "$KEYDIR"
 

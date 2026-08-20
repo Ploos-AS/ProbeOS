@@ -3,10 +3,10 @@
 This document describes the boot menu structure and available boot modes for
 ProbeOS.
 
-> The current generated GRUB ISO has the GUI, Text / Curses, and Memtest86+
-> entries described below. See [build-audit.md](build-audit.md) and
-> [memtest.md](memtest.md) for verified status. No SYSLINUX configuration
-> exists in the current checkout.
+> GRUB provides the modern BIOS/UEFI menu. SYSLINUX provides a focused legacy
+> BIOS menu from `boot/syslinux/isolinux.cfg`. See
+> [build-audit.md](build-audit.md) and [memtest.md](memtest.md) for verified
+> status.
 
 The boot menu is the primary user entry point and must remain simple, explicit,
 and predictable.
@@ -15,7 +15,9 @@ and predictable.
 
 ## 1. Bootloader
 
-ProbeOS uses GRUB2 as the primary bootloader.
+ProbeOS uses GRUB2 as its primary modern bootloader and ISOLINUX/SYSLINUX for
+legacy BIOS compatibility. GRUB owns UEFI support; the SYSLINUX artifact is
+intentionally BIOS-only.
 
 Goals:
 - BIOS and UEFI compatibility
@@ -39,6 +41,11 @@ ProbeOS
 The normal generated ISO defaults to **Start ProbeOS (Text / Curses)** so that
 serial and headless qualification has a stable console. Memtest is never the
 default.
+
+The SYSLINUX menu exposes Hardware Identification, Serial Console, Verbose /
+Debug, and Memory Test entries. Hardware Identification is its normal default.
+Reboot and power-off entries are omitted because this milestone does not
+qualify the associated COM32 behavior on legacy machines.
 
 ---
 

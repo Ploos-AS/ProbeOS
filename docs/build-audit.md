@@ -5,6 +5,10 @@ Audit baseline: branch `main`, commit
 Identification v1`). Hardware Identification v1 and its single
 `probe-identify` implementation are unchanged.
 
+The SYSLINUX legacy BIOS milestone started from branch `main`, clean at commit
+`9926a832817b90a99196006adbd5b9555f0a7053`. No SYSLINUX configuration was
+present in that tree or in relevant repository history.
+
 ## Original failure and diagnosis
 
 The baseline Alpine builder installed a complete system into
@@ -54,6 +58,10 @@ behavior.
   `modloop=/boot/modloop-lts` parameters. Media discovery is automatic, so no
   device-specific `alpine_dev` is hard-coded. `alpine_repo` is likewise
   unnecessary because `.boot_repository` identifies the ISO repository.
+- SYSLINUX passes the same modules and modloop parameters. It likewise leaves
+  `alpine_dev` and `alpine_repo` unset so Alpine discovers the `PROBEOS` media,
+  root-level apkovl, and `/apks/.boot_repository`. Kernel and initramfs paths
+  remain `/boot/vmlinuz` and `/boot/initramfs` for both loaders.
 - A serial-capable text entry retains `tty0` and adds `ttyS0,115200` for test
   automation. It is the conservative default for this milestone.
 - OpenRC's local service runs the existing `/usr/local/bin/probe-identify`,
@@ -70,12 +78,30 @@ apkovl, and APK repository are all on the ISO; boot qualification runs QEMU
 with `-nic none`, proving the default identification path has no network
 dependency.
 
+## SYSLINUX BIOS construction
+
+The version-controlled menu is `boot/syslinux/isolinux.cfg`. During a
+`BOOTLOADER=syslinux` build, Alpine's `syslinux` package supplies
+`isolinux.bin`, `ldlinux.c32`, `menu.c32`, `libcom32.c32`, and `libutil.c32`;
+these generated build inputs are copied beside the config and are not committed.
+Placing `isolinux.cfg` beside `isolinux.bin` provides standard ISOLINUX config
+discovery.
+
+`xorriso -as mkisofs` creates a no-emulation BIOS El Torito image using
+`boot/syslinux/isolinux.bin`, patches its boot info table, and installs the
+standard `isohdpfx.bin` MBR with a partition offset of 16. The result boots as
+virtual or physical optical media and supports raw USB writing through the
+normal SYSLINUX isohybrid mechanism. No EFI image is added: GRUB owns UEFI.
+
 ## Reproduction and qualification
 
 From a clean checkout with Docker, QEMU, xorriso, and (for UEFI) OVMF:
 
 ```sh
 build/alpine/build-container.sh
+BOOTLOADER=syslinux build/alpine/build-container.sh
+ARCH=x86 build/alpine/build-container.sh
+ARCH=x86 BOOTLOADER=syslinux build/alpine/build-container.sh
 tests/iso-layout.sh out/probeos-x86_64-grub.iso
 PROBEOS_QEMU_TIMEOUT=120 tests/qemu-smoke.sh \
   out/probeos-x86_64-grub.iso bios /tmp/probeos-bios.log
@@ -100,12 +126,21 @@ Qualified artifacts: `out/probeos-x86_64-grub.iso` and
 | x86_64 | GRUB | SeaBIOS | Userspace, root login, probe and reports pass |
 | x86_64 | GRUB | OVMF | Userspace, root login, probe and UEFI report pass |
 | x86 | GRUB | SeaBIOS (`qemu-system-i386`) | Userspace, root login, probe and reports pass |
+| x86_64 | SYSLINUX | SeaBIOS | Userspace, root login, probe and reports pass |
+| x86 | SYSLINUX | SeaBIOS (`qemu-system-i386`) | Userspace, root login, probe and reports pass |
+
+Memtest86+ v8.10 also starts under every row above; see [memtest.md](memtest.md).
+All QEMU qualification uses `-nic none`. SYSLINUX commands are:
+
+```sh
+tests/qemu-smoke.sh out/probeos-x86_64-syslinux.iso bios
+QEMU=qemu-system-i386 tests/qemu-smoke.sh out/probeos-x86-syslinux.iso bios
+```
 
 ## Known limitations and next work
 
-- There was no checked-in SYSLINUX configuration at the baseline commit.
-  SYSLINUX has not been removed, but its artifact variants remain a later
-  qualification task once a source configuration is restored or added.
+- SYSLINUX artifacts support legacy BIOS only. UEFI, including the separately
+  unqualified IA32 UEFI path, remains a GRUB responsibility.
 - Automatic GUI startup is not required or qualified here. The stable root
   console/login path is the accepted startup behavior.
 - The ISO includes an El Torito EFI image produced by `grub-mkrescue`; it does

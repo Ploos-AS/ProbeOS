@@ -35,4 +35,12 @@ grep -Fq "$marker" "$LOG" || {
     tail -n 120 "$LOG" >&2
     exit 1
 }
+case $(basename "$ISO") in
+    *-syslinux.iso)
+        grep -Fq 'ProbeOS - Legacy BIOS' "$LOG" || {
+            echo "ProbeOS SYSLINUX menu marker not found; see $LOG" >&2
+            exit 1
+        }
+        ;;
+esac
 echo "ok - $MODE reached ProbeOS userspace and generated valid hardware reports"
