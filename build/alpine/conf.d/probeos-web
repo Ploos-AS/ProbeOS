@@ -1,0 +1,4 @@
+# Local-only is the safe default. TUI LAN mode changes this at runtime.
+PROBEOS_WEB_BIND="127.0.0.1"
+PROBEOS_WEB_PORT="8080"
+PROBEOS_REPORT_DIR="/run/probeos"

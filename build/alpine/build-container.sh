@@ -13,6 +13,7 @@ docker run --rm --privileged \
     -e BOOTLOADER="$BOOTLOADER" \
     -e GRUB_DEFAULT="${GRUB_DEFAULT:-}" \
     -e SYSLINUX_DEFAULT="${SYSLINUX_DEFAULT:-}" \
+    -e PROBEOS_WEB_BIND="${PROBEOS_WEB_BIND:-}" \
     -v "$REPO_ROOT:/workspace" \
     -w /workspace \
     "$IMAGE" build/alpine/build-iso.sh

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Minimal udhcpc hook; no resolver or persistent configuration is required.
+set -eu
+# udhcpc supplies these variables when invoking its hook.
+# shellcheck disable=SC2154
+iface=${interface:?}
+case "${1:-}" in
+    deconfig)
+        ip addr flush dev "$iface" scope global 2>/dev/null || true
+        ;;
+    bound|renew)
+        ip addr flush dev "$iface" scope global 2>/dev/null || true
+        # shellcheck disable=SC2154
+        ip addr add "$ip/${subnet:-24}" dev "$iface"
+        if [ -n "${router:-}" ]; then
+            ip route replace default via "${router%% *}" dev "$iface"
+        fi
+        ;;
+esac

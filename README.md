@@ -28,9 +28,13 @@ Interfaces, tools, and features are subject to change.
 ## Hardware reports
 
 `probe-identify` is the central read-only hardware inventory. It generates a
-human-readable report and stable-schema JSON under `/run/probeos`. See
+human-readable report and stable-schema JSON under `/run/probeos`. The optional
+retro-friendly local Web UI/API presents that same report without probing again.
+See
 [`docs/hardware-identification.md`](docs/hardware-identification.md) for data
 sources, Windows OEM-license handling, privacy guidance, and limitations.
+See [docs/web-api.md](docs/web-api.md) and [docs/networking.md](docs/networking.md)
+for Web/API and LAN operation.
 
 ## Build and boot
 

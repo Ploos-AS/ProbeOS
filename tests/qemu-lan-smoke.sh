@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ISO=${1:?usage: qemu-lan-smoke.sh ISO [LOG]}
+LOG=${2:-"${TMPDIR:-/tmp}/$(basename "${ISO%.iso}")-lan.log"}
+TIMEOUT=${PROBEOS_LAN_TIMEOUT:-180}
+PORT=${PROBEOS_LAN_PORT:-18080}
+QEMU=${QEMU:-qemu-system-x86_64}
+qemu_pid=
+cleanup() { [ -z "$qemu_pid" ] || kill "$qemu_pid" 2>/dev/null || true; }
+trap cleanup EXIT
+
+rm -f "$LOG"
+timeout "$TIMEOUT" "$QEMU" -m 2048 -smp 2 -cdrom "$ISO" -boot d -display none \
+    -serial "file:$LOG" -no-reboot -nic "user,model=e1000,hostfwd=tcp:127.0.0.1:$PORT-10.0.2.15:8080" &
+qemu_pid=$!
+health=
+for _ in $(seq 1 180); do
+    health=$(curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/v1/health" 2>/dev/null || true)
+    if [ -n "$health" ] && jq -e '.service=="running" and .report_available==true' <<<"$health" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+[ -n "$health" ] || { echo "LAN web service did not respond; see $LOG" >&2; exit 1; }
+jq -e '.service=="running" and .api_version=="1" and .report_available==true' <<<"$health" >/dev/null
+report=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report")
+jq -e '(.schema_version=="1.0") and ([.network[]? | select(.interface!="lo")] | length >= 1)' <<<"$report" >/dev/null
+curl -fsS "http://127.0.0.1:$PORT/" | grep -Fq 'ProbeOS'
+grep -Fq 'PROBEOS_BOOT_OK' "$LOG"
+echo "ok - QEMU DHCP/user-network and forwarded ProbeOS Web/API passed"

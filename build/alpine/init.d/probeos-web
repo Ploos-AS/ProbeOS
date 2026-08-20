@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+# shellcheck shell=sh
+# shellcheck disable=SC2034
+
+description="ProbeOS report web UI and read-only API"
+command=/usr/local/bin/probeos-web
+command_args=""
+command_user=root
+command_background=true
+pidfile=/run/probeos-web.pid
+output_log=/var/log/probeos-web.log
+error_log=/var/log/probeos-web.log
+
+depend() {
+    need localmount
+    after probe-identify probeos-network
+}

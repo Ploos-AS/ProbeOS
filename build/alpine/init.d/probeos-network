@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+# shellcheck shell=sh
+# shellcheck disable=SC2034
+
+description="ProbeOS wired DHCP client"
+command=/usr/local/bin/probeos-network
+command_args=auto
+command_background=true
+pidfile=/run/probeos-network.pid
+output_log=/var/log/probeos-network.log
+error_log=/var/log/probeos-network.log
+
+depend() {
+    need localmount
+    after bootmisc
+    before probeos-web local
+}

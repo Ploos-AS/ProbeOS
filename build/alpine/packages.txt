@@ -16,6 +16,7 @@ dmidecode
 hwinfo
 inxi
 jq
+python3
 lm-sensors
 powertop
 smartmontools

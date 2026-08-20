@@ -29,6 +29,7 @@ MEMTEST_VERSION="8.10"
 MEMTEST_ARCHIVE_URL="https://memtest.org/download/v${MEMTEST_VERSION}/mt86plus_${MEMTEST_VERSION}.binaries.zip"
 MEMTEST_ARCHIVE_SHA256="7e6c5162cb84ab959aeb9d13c9cfd6976b0dec3b34936b73820b20c55eb26c29"
 GRUB_DEFAULT="${GRUB_DEFAULT:-1}"
+WEB_BIND="${PROBEOS_WEB_BIND:-127.0.0.1}"
 case "$ARCH" in
     x86_64) MEMTEST_MEMBER="mt86p_810_x86_64" ;;
     x86) MEMTEST_MEMBER="mt86p_810_i586" ;;
@@ -143,13 +144,25 @@ echo "[*] Installing GUI and TUI scripts"
 mkdir -p "$WORKDIR/usr/local/bin"
 cp "$REPO_ROOT/src/scripts/tui-menu.sh" "$WORKDIR/usr/local/bin/tui-menu.sh"
 cp "$REPO_ROOT/src/scripts/gui-menu.sh" "$WORKDIR/usr/local/bin/gui-menu.sh"
+cp "$REPO_ROOT/src/scripts/probeos-network" "$WORKDIR/usr/local/bin/probeos-network"
+cp "$REPO_ROOT/src/scripts/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-udhcpc"
+cp "$REPO_ROOT/src/scripts/probeos-web" "$WORKDIR/usr/local/bin/probeos-web"
 cp "$REPO_ROOT/src/scripts/probe-identify" "$WORKDIR/usr/local/bin/probe-identify"
 mkdir -p "$WORKDIR/usr/local/lib/probeos"
 cp "$REPO_ROOT/src/lib/probe-identify-lib.sh" "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
+cp "$REPO_ROOT/src/web/probeos_web.py" "$WORKDIR/usr/local/lib/probeos/probeos_web.py"
+mkdir -p "$WORKDIR/etc/init.d" "$WORKDIR/etc/conf.d"
+cp "$SCRIPT_DIR/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-network"
+cp "$SCRIPT_DIR/init.d/probeos-web" "$WORKDIR/etc/init.d/probeos-web"
+cp "$SCRIPT_DIR/conf.d/probeos-web" "$WORKDIR/etc/conf.d/probeos-web"
+sed -i "s|^PROBEOS_WEB_BIND=.*|PROBEOS_WEB_BIND=\"$WEB_BIND\"|" "$WORKDIR/etc/conf.d/probeos-web"
+chroot "$WORKDIR" rc-update add probeos-network default
+chroot "$WORKDIR" rc-update add probeos-web default
 # Replace the literal runtime fallback.
 # shellcheck disable=SC2016
 sed -i 's|$SELF_DIR/../lib/probe-identify-lib.sh|/usr/local/lib/probeos/probe-identify-lib.sh|' "$WORKDIR/usr/local/bin/probe-identify"
 chmod +x "$WORKDIR/usr/local/bin/"*.sh
+chmod +x "$WORKDIR/usr/local/bin/probeos-network" "$WORKDIR/usr/local/bin/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-web" "$WORKDIR/etc/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-web"
 chmod +x "$WORKDIR/usr/local/bin/probe-identify"
 
 # =========================================
