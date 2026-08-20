@@ -3,6 +3,10 @@
 This document describes the boot menu structure and available boot modes for
 ProbeOS.
 
+> This is a target design, not a description of the current generated ISO.
+> See [build-audit.md](build-audit.md) for implemented entries and verified boot
+> status. No SYSLINUX configuration exists in the current checkout.
+
 The boot menu is the primary user entry point and must remain simple, explicit,
 and predictable.
 

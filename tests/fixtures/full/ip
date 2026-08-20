@@ -1,0 +1,1 @@
+[{"ifindex":1,"ifname":"lo","mtu":65536,"operstate":"UNKNOWN","address":"00:00:00:00:00:00"},{"ifindex":2,"ifname":"eth0","mtu":1500,"operstate":"UP","address":"02:00:00:00:00:01"}]

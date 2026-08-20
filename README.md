@@ -25,6 +25,13 @@ Project homepage: https://probeos.eu
 ProbeOS is in early development (v0.1).  
 Interfaces, tools, and features are subject to change.
 
+## Hardware reports
+
+`probe-identify` is the central read-only hardware inventory. It generates a
+human-readable report and stable-schema JSON under `/run/probeos`. See
+[`docs/hardware-identification.md`](docs/hardware-identification.md) for data
+sources, Windows OEM-license handling, privacy guidance, and limitations.
+
 ---
 
 ## License

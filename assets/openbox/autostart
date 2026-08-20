@@ -5,7 +5,7 @@
 # © 2026 Ploos AS
 
 # Set wallpaper
-feh --bg-scale /usr/share/probeos/wallpaper.png &
+[ ! -f /usr/share/probeos/wallpaper.png ] || feh --bg-scale /usr/share/probeos/wallpaper.png &
 
 # Panel
 tint2 &

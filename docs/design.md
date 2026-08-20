@@ -61,7 +61,8 @@ Key characteristics:
 - BusyBox-based userland
 - Minimal init system
 - No persistent state by default
-- BIOS and UEFI boot support
+- BIOS and UEFI boot support is a target; see the build audit for current
+  validation status
 
 ---
 
@@ -136,11 +137,11 @@ ProbeOS aims to provide insight into:
 
 ## 9. Reporting
 
-ProbeOS supports exporting inspection and benchmark results:
+ProbeOS exports hardware inspection results:
 
-- Plain text summaries
-- Optional HTML reports
-- Timestamped output directories
+- Plain text summaries (`/run/probeos/report.txt`)
+- Stable-schema JSON (`/run/probeos/report.json`)
+- Timestamped copies through the frontends
 - Non-persistent by default unless saved by the user
 
 All reports include basic provenance information (ProbeOS version, timestamp).

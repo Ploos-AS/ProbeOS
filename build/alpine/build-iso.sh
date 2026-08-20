@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
 # ProbeOS Alpine-native ISO build
 # https://probeos.eu
@@ -12,27 +12,23 @@ WORKDIR="$REPO_ROOT/build/alpine/work"
 ISODIR="$REPO_ROOT/build/alpine/iso"
 OUTDIR="$REPO_ROOT/out"
 
-ARCH="x86_64"
+ARCH="${ARCH:-x86_64}"
 ISO_NAME="probeos-${ARCH}.iso"
 PACKAGES_FILE="$SCRIPT_DIR/packages.txt"
-
-ALPINE_VERSION="3.19"
-ARCH="x86_64"
-
-ISO_NAME="probeos-${ARCH}.iso"
-
-PACKAGES_FILE="$ROOTDIR/build/alpine/packages.txt"
 
 echo "[*] Cleaning previous builds"
 rm -rf "$WORKDIR" "$ISODIR" "$OUTDIR"
 mkdir -p "$WORKDIR" "$ISODIR" "$OUTDIR"
 
 echo "[*] Installing Alpine base system and packages"
-apk --root "$WORKDIR" \
+sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' "$PACKAGES_FILE" | xargs apk --root "$WORKDIR" \
+    --initdb \
+    --quiet \
     --arch "$ARCH" \
     --keys-dir /etc/apk/keys \
-    --repositories-file /etc/apk/repositories \
-    add alpine-base $(grep -v '^#' "$PACKAGES_FILE")
+    --repository https://dl-cdn.alpinelinux.org/alpine/v3.19/main \
+    --repository https://dl-cdn.alpinelinux.org/alpine/v3.19/community \
+    add
 
 echo "[*] Configuring system"
 echo "probeos" > "$WORKDIR/etc/hostname"
@@ -47,7 +43,6 @@ echo "root:probeos" | chroot "$WORKDIR" chpasswd
 
 echo "[*] Enabling essential services"
 chroot "$WORKDIR" rc-update add devfs sysinit
-chroot "$WORKDIR" rc-update add sysinit
 chroot "$WORKDIR" rc-update add mdev sysinit
 chroot "$WORKDIR" rc-update add hwdrivers sysinit
 
@@ -57,9 +52,10 @@ chroot "$WORKDIR" rc-update add hwdrivers sysinit
 echo "[*] Installing visual assets"
 
 mkdir -p "$WORKDIR/usr/share/probeos"
-cp -r "$ROOTDIR/assets/logo/logo.png" "$WORKDIR/usr/share/probeos/"
-cp "$ROOTDIR/assets/generated/wallpaper.png" "$WORKDIR/usr/share/probeos/wallpaper.png"
-cp "$ROOTDIR/assets/generated/splash.png" "$WORKDIR/usr/share/probeos/splash.png"
+cp "$REPO_ROOT/assets/logo/logo.png" "$WORKDIR/usr/share/probeos/"
+if [ -f "$REPO_ROOT/assets/generated/wallpaper.png" ]; then
+    cp "$REPO_ROOT/assets/generated/wallpaper.png" "$WORKDIR/usr/share/probeos/wallpaper.png"
+fi
 
 # =========================================
 # Openbox configuration
@@ -67,10 +63,10 @@ cp "$ROOTDIR/assets/generated/splash.png" "$WORKDIR/usr/share/probeos/splash.png
 echo "[*] Installing Openbox configuration"
 
 mkdir -p "$WORKDIR/etc/xdg/openbox"
-cp "$ROOTDIR/assets/openbox/rc.xml" "$WORKDIR/etc/xdg/openbox/rc.xml"
-cp "$ROOTDIR/assets/openbox/autostart" "$WORKDIR/etc/xdg/openbox/autostart"
+cp "$REPO_ROOT/assets/openbox/rc.xml" "$WORKDIR/etc/xdg/openbox/rc.xml"
+cp "$REPO_ROOT/assets/openbox/autostart" "$WORKDIR/etc/xdg/openbox/autostart"
 mkdir -p "$WORKDIR/etc/xdg/tint2"
-cp "$ROOTDIR/assets/openbox/tint2rc" "$WORKDIR/etc/xdg/tint2/tint2rc"
+cp "$REPO_ROOT/assets/openbox/tint2rc" "$WORKDIR/etc/xdg/tint2/tint2rc"
 
 # =========================================
 # Install ProbeOS scripts
@@ -78,15 +74,24 @@ cp "$ROOTDIR/assets/openbox/tint2rc" "$WORKDIR/etc/xdg/tint2/tint2rc"
 echo "[*] Installing GUI and TUI scripts"
 
 mkdir -p "$WORKDIR/usr/local/bin"
-cp "$ROOTDIR/src/scripts/tui-menu.sh" "$WORKDIR/usr/local/bin/tui-menu.sh"
-cp "$ROOTDIR/src/scripts/gui-menu.sh" "$WORKDIR/usr/local/bin/gui-menu.sh"
+cp "$REPO_ROOT/src/scripts/tui-menu.sh" "$WORKDIR/usr/local/bin/tui-menu.sh"
+cp "$REPO_ROOT/src/scripts/gui-menu.sh" "$WORKDIR/usr/local/bin/gui-menu.sh"
+cp "$REPO_ROOT/src/scripts/probe-identify" "$WORKDIR/usr/local/bin/probe-identify"
+mkdir -p "$WORKDIR/usr/local/lib/probeos"
+cp "$REPO_ROOT/src/lib/probe-identify-lib.sh" "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
+# Replace the literal runtime fallback.
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/probe-identify-lib.sh|/usr/local/lib/probeos/probe-identify-lib.sh|' "$WORKDIR/usr/local/bin/probe-identify"
 chmod +x "$WORKDIR/usr/local/bin/"*.sh
+chmod +x "$WORKDIR/usr/local/bin/probe-identify"
 
 # =========================================
 # Initramfs
 # =========================================
 echo "[*] Creating initramfs"
-chroot "$WORKDIR" mkinitfs -o /boot/initramfs-probeos
+set -- "$WORKDIR"/lib/modules/*
+KERNEL_VERSION=${1##*/}
+chroot "$WORKDIR" mkinitfs -o /boot/initramfs-probeos "$KERNEL_VERSION"
 
 # =========================================
 # ISO preparation

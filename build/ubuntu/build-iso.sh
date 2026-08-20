@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
 # ProbeOS ISO build on Ubuntu/Debian host
 # Uses Alpine minirootfs
 # https://probeos.eu
 # © 2026 Ploos AS
 
-ROOTDIR="$(pwd)"
-WORKDIR="$ROOTDIR/work"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOTDIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKDIR="$ROOTDIR/build/ubuntu/work"
 ROOTFS="$WORKDIR/rootfs"
 ISODIR="$ROOTDIR/iso"
 OUTDIR="$ROOTDIR/out"
-MINIROOTFS="$WORKDIR/alpine-minirootfs.tar.gz"
-ARCH="x86_64"
+ARCH="${ARCH:-x86_64}"
+MINIROOTFS="$WORKDIR/alpine-minirootfs-${ARCH}.tar.gz"
 ISO_NAME="probeos-${ARCH}.iso"
 PACKAGES_FILE="$ROOTDIR/build/alpine/packages.txt"
 
@@ -20,7 +21,7 @@ PACKAGES_FILE="$ROOTDIR/build/alpine/packages.txt"
 # 1. Prepare directories
 # =========================
 echo "[*] Cleaning previous builds"
-rm -rf "$WORKDIR" "$ISODIR" "$OUTDIR"
+rm -rf "$WORKDIR" "$ISODIR"
 mkdir -p "$WORKDIR" "$ISODIR" "$OUTDIR"
 
 # =========================
@@ -28,7 +29,7 @@ mkdir -p "$WORKDIR" "$ISODIR" "$OUTDIR"
 # =========================
 if [ ! -f "$MINIROOTFS" ]; then
     echo "[*] Downloading Alpine minirootfs"
-    wget -O "$MINIROOTFS" "https://dl-cdn.alpinelinux.org/alpine/v3.19/releases/x86_64/alpine-minirootfs-3.19.0-x86_64.tar.gz"
+    wget -O "$MINIROOTFS" "https://dl-cdn.alpinelinux.org/alpine/v3.19/releases/${ARCH}/alpine-minirootfs-3.19.0-${ARCH}.tar.gz"
 fi
 
 # =========================
@@ -42,7 +43,10 @@ tar -xzf "$MINIROOTFS" -C "$ROOTFS"
 # 4. Setup apk repos
 # =========================
 mkdir -p "$ROOTFS/etc/apk"
-echo "https://dl-cdn.alpinelinux.org/alpine/v3.19/main" > "$ROOTFS/etc/apk/repositories"
+cat > "$ROOTFS/etc/apk/repositories" <<EOF
+https://dl-cdn.alpinelinux.org/alpine/v3.19/main
+https://dl-cdn.alpinelinux.org/alpine/v3.19/community
+EOF
 
 # =========================
 # 5. Install packages
@@ -52,7 +56,7 @@ if [ ! -f "$PACKAGES_FILE" ]; then
     echo "[!] ERROR: $PACKAGES_FILE not found"
     exit 1
 fi
-xargs -a "$PACKAGES_FILE" apk --root "$ROOTFS" --arch "$ARCH" --no-cache add
+sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' "$PACKAGES_FILE" | xargs apk --root "$ROOTFS" --arch "$ARCH" --no-cache add
 
 # =========================
 # 6. Configure system
@@ -69,7 +73,6 @@ echo "root:probeos" | chroot "$ROOTFS" chpasswd
 
 # Enable essential services
 chroot "$ROOTFS" rc-update add devfs sysinit
-chroot "$ROOTFS" rc-update add sysinit
 chroot "$ROOTFS" rc-update add mdev sysinit
 chroot "$ROOTFS" rc-update add hwdrivers sysinit
 
@@ -78,8 +81,9 @@ chroot "$ROOTFS" rc-update add hwdrivers sysinit
 # =========================
 mkdir -p "$ROOTFS/usr/share/probeos"
 cp -r "$ROOTDIR/assets/logo/logo.png" "$ROOTFS/usr/share/probeos/"
-cp "$ROOTDIR/assets/generated/wallpaper.png" "$ROOTFS/usr/share/probeos/wallpaper.png"
-cp "$ROOTDIR/assets/generated/splash.png" "$ROOTFS/usr/share/probeos/splash.png"
+if [ -f "$ROOTDIR/assets/generated/wallpaper.png" ]; then
+    cp "$ROOTDIR/assets/generated/wallpaper.png" "$ROOTFS/usr/share/probeos/wallpaper.png"
+fi
 
 # Openbox configuration
 mkdir -p "$ROOTFS/etc/xdg/openbox"
@@ -92,13 +96,22 @@ cp "$ROOTDIR/assets/openbox/tint2rc" "$ROOTFS/etc/xdg/tint2/tint2rc"
 mkdir -p "$ROOTFS/usr/local/bin"
 cp "$ROOTDIR/src/scripts/tui-menu.sh" "$ROOTFS/usr/local/bin/"
 cp "$ROOTDIR/src/scripts/gui-menu.sh" "$ROOTFS/usr/local/bin/"
+cp "$ROOTDIR/src/scripts/probe-identify" "$ROOTFS/usr/local/bin/"
+mkdir -p "$ROOTFS/usr/local/lib/probeos"
+cp "$ROOTDIR/src/lib/probe-identify-lib.sh" "$ROOTFS/usr/local/lib/probeos/"
+# Replace the literal runtime fallback.
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/probe-identify-lib.sh|/usr/local/lib/probeos/probe-identify-lib.sh|' "$ROOTFS/usr/local/bin/probe-identify"
 chmod +x "$ROOTFS/usr/local/bin/"*.sh
+chmod +x "$ROOTFS/usr/local/bin/probe-identify"
 
 # =========================
 # 8. Initramfs
 # =========================
 echo "[*] Creating initramfs"
-chroot "$ROOTFS" mkinitfs -o /boot/initramfs-probeos
+set -- "$ROOTFS"/lib/modules/*
+KERNEL_VERSION=${1##*/}
+chroot "$ROOTFS" mkinitfs -o /boot/initramfs-probeos "$KERNEL_VERSION"
 
 # =========================
 # 9. Prepare ISO

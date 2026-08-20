@@ -16,7 +16,6 @@ WALLPAPER_H=1080
 SPLASH_W=1024
 SPLASH_H=768
 
-BG_COLOR="#0f1115"
 FG_COLOR="#cfd3dc"
 
 echo "[*] Generating wallpaper"

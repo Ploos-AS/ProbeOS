@@ -1,0 +1,18 @@
+Architecture:                         x86_64
+CPU(s):                               16
+Vendor ID:                            GenuineIntel
+Model name:                           Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz
+CPU family:                           6
+Model:                                165
+Stepping:                             5
+Thread(s) per core:                   2
+Core(s) per socket:                   8
+Socket(s):                            1
+CPU max MHz:                          4800.0000
+CPU min MHz:                          800.0000
+L1d cache:                            256 KiB
+L1i cache:                            256 KiB
+L2 cache:                             2 MiB
+L3 cache:                             16 MiB
+Virtualization:                       VT-x
+Flags:                                fpu vmx sse sse2 avx avx2

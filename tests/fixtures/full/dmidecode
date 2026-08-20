@@ -1,0 +1,40 @@
+# dmidecode 3.5
+BIOS Information
+        Vendor: Example Firmware
+        Version: 1.2.3
+        Release Date: 01/02/2026
+
+System Information
+        Manufacturer: Ploos Test Labs
+        Product Name: Fixture Workstation
+        Version: V1
+        Serial Number: SYS123
+        UUID: 00112233-4455-6677-8899-aabbccddeeff
+
+Base Board Information
+        Manufacturer: Example Boards
+        Product Name: Board 9000
+        Version: 2.0
+        Serial Number: BOARD123
+
+Chassis Information
+        Type: Desktop
+        Serial Number: CHASSIS123
+
+Memory Device
+        Size: 16 GB
+        Locator: DIMM_A1
+        Bank Locator: BANK 0
+        Type: DDR4
+        Speed: 3200 MT/s
+        Configured Memory Speed: 2933 MT/s
+        Manufacturer: Memory Corp
+        Serial Number: RAM123
+        Part Number: MC16G3200
+
+Memory Device
+        Size: No Module Installed
+        Locator: DIMM_A2
+        Bank Locator: BANK 1
+        Type: Unknown
+        Speed: Unknown
