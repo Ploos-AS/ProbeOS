@@ -3,9 +3,10 @@
 This document describes the boot menu structure and available boot modes for
 ProbeOS.
 
-> This is a target design, not a description of the current generated ISO.
-> See [build-audit.md](build-audit.md) for implemented entries and verified boot
-> status. No SYSLINUX configuration exists in the current checkout.
+> The current generated GRUB ISO has the GUI, Text / Curses, and Memtest86+
+> entries described below. See [build-audit.md](build-audit.md) and
+> [memtest.md](memtest.md) for verified status. No SYSLINUX configuration
+> exists in the current checkout.
 
 The boot menu is the primary user entry point and must remain simple, explicit,
 and predictable.
@@ -35,7 +36,9 @@ ProbeOS
 - Firmware / Low-Level Tools
 - Advanced / Debug
 
-The default selection is **Start ProbeOS (GUI)**.
+The normal generated ISO defaults to **Start ProbeOS (Text / Curses)** so that
+serial and headless qualification has a stable console. Memtest is never the
+default.
 
 ---
 

@@ -55,6 +55,10 @@ The resulting root login password is `probeos`. See
 [`docs/build-audit.md`](docs/build-audit.md) for the live-media architecture,
 qualification evidence, and current limitations.
 
+ProbeOS also includes the offline, open-source Memtest86+ v8.10 boot option;
+see [`docs/memtest.md`](docs/memtest.md) for provenance, licensing, and
+qualification details. It is distinct from the proprietary PassMark MemTest86.
+
 ---
 
 ## License

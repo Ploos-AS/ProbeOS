@@ -20,8 +20,17 @@ MODLOOPDIR="$REPO_ROOT/build/alpine/modloop"
 KEYDIR="$REPO_ROOT/build/alpine/keys"
 ALPINE_MAIN="https://dl-cdn.alpinelinux.org/alpine/v3.19/main"
 ALPINE_COMMUNITY="https://dl-cdn.alpinelinux.org/alpine/v3.19/community"
+MEMTEST_VERSION="8.10"
+MEMTEST_ARCHIVE_URL="https://memtest.org/download/v${MEMTEST_VERSION}/mt86plus_${MEMTEST_VERSION}.binaries.zip"
+MEMTEST_ARCHIVE_SHA256="7e6c5162cb84ab959aeb9d13c9cfd6976b0dec3b34936b73820b20c55eb26c29"
+GRUB_DEFAULT="${GRUB_DEFAULT:-1}"
+case "$ARCH" in
+    x86_64) MEMTEST_MEMBER="mt86p_810_x86_64" ;;
+    x86) MEMTEST_MEMBER="mt86p_810_i586" ;;
+    *) echo "[!] Unsupported Memtest86+ architecture: $ARCH" >&2; exit 1 ;;
+esac
 
-for command_name in abuild-sign apk chroot grub-mkrescue mksquashfs openssl tar; do
+for command_name in abuild-sign apk chroot curl grub-mkrescue mksquashfs openssl sha256sum tar unzip; do
     command -v "$command_name" >/dev/null 2>&1 || {
         echo "[!] Missing build command: $command_name" >&2
         echo "[!] Use build/alpine/build-container.sh for a reproducible build." >&2
@@ -133,6 +142,18 @@ chmod +x "$WORKDIR/usr/local/bin/"*.sh
 chmod +x "$WORKDIR/usr/local/bin/probe-identify"
 
 # =========================================
+# Open-source Memtest86+ payload
+# =========================================
+echo "[*] Installing Memtest86+ v$MEMTEST_VERSION"
+MEMTEST_DIR="$WORKDIR/memtest"
+MEMTEST_ARCHIVE="$WORKDIR/memtest86plus.zip"
+mkdir -p "$MEMTEST_DIR"
+curl -fsSL "$MEMTEST_ARCHIVE_URL" -o "$MEMTEST_ARCHIVE"
+printf '%s  %s\n' "$MEMTEST_ARCHIVE_SHA256" "$MEMTEST_ARCHIVE" | sha256sum -c -
+unzip -q -j "$MEMTEST_ARCHIVE" "$MEMTEST_MEMBER" -d "$MEMTEST_DIR"
+mv "$MEMTEST_DIR/$MEMTEST_MEMBER" "$MEMTEST_DIR/mt86plus"
+
+# =========================================
 # Initramfs
 # =========================================
 echo "[*] Creating initramfs"
@@ -173,6 +194,9 @@ rm -f "$WORKDIR/etc/apk/repositories"
 tar -C "$WORKDIR" -czf "$ISODIR/probeos.apkovl.tar.gz" \
     etc usr/local usr/share/probeos
 
+mkdir -p "$ISODIR/boot/memtest"
+cp "$MEMTEST_DIR/mt86plus" "$ISODIR/boot/memtest/mt86plus"
+
 # =========================================
 # ISO preparation
 # =========================================
@@ -181,7 +205,7 @@ cp "$WORKDIR/boot/vmlinuz-lts" "$ISODIR/boot/vmlinuz"
 cp "$WORKDIR/boot/initramfs-probeos" "$ISODIR/boot/initramfs"
 
 cat > "$ISODIR/boot/grub/grub.cfg" <<EOF
-set default=1
+set default=$GRUB_DEFAULT
 set timeout=5
 
 menuentry "ProbeOS (GUI)" {
@@ -192,6 +216,10 @@ menuentry "ProbeOS (GUI)" {
 menuentry "ProbeOS (Text / Curses)" {
     linux /boot/vmlinuz modules=loop,squashfs,sd-mod,usb-storage modloop=/boot/modloop-lts console=tty0 console=ttyS0,115200 text
     initrd /boot/initramfs
+}
+
+menuentry "ProbeOS - Memory Test (Memtest86+)" {
+    linux /boot/memtest/mt86plus console=ttyS0,115200
 }
 EOF
 

@@ -111,4 +111,5 @@ Qualified artifacts: `out/probeos-x86_64-grub.iso` and
 - The ISO includes an El Torito EFI image produced by `grub-mkrescue`; it does
   not mirror an `/EFI/BOOT` directory into the visible ISO filesystem. OVMF
   boot qualification passes.
-- Memtest86+ remains deliberately outside this live-root milestone.
+- Open-source Memtest86+ v8.10 is now integrated as a direct GRUB standalone
+  entry; see [memtest.md](memtest.md) for its provenance and qualification.
