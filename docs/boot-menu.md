@@ -138,7 +138,7 @@ Branding is minimal and informational only.
 
 Footer example:
 
-ProbeOS — https://probeos.eu  
+ProbeOS — https://probeos.eu
 © 2026 Ploos AS
 
 ---

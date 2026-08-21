@@ -20,23 +20,23 @@ by the user.
 
 ProbeOS is guided by the following principles:
 
-- **Hardware-first**  
+- **Hardware-first**
   The primary focus is discovering, verifying, and testing system hardware.
 
-- **Minimal and fast**  
+- **Minimal and fast**
   The system should boot quickly and remain small in size.
 
-- **Trustworthy by default**  
+- **Trustworthy by default**
   Read-only operations are preferred. Potentially destructive tools must be
   clearly labeled and opt-in.
 
-- **Fully redistributable**  
+- **Fully redistributable**
   All included components must be open-source and legally redistributable.
 
-- **Multiple interfaces**  
+- **Multiple interfaces**
   ProbeOS must function in both graphical (GUI) and text-based (TUI) modes.
 
-- **Predictable behavior**  
+- **Predictable behavior**
   Tools should behave consistently across hardware and platforms.
 
 ---
@@ -70,20 +70,20 @@ Key characteristics:
 
 ProbeOS provides multiple boot modes via the bootloader menu:
 
-- **ProbeOS (GUI)**  
+- **ProbeOS (GUI)**
   Boots into a minimal graphical environment for hardware inspection and
   benchmarking.
 
-- **ProbeOS (Text / Curses)**  
+- **ProbeOS (Text / Curses)**
   Boots into a text-only environment with a menu-driven interface.
 
-- **Memory Test**  
+- **Memory Test**
   Standalone memory testing (e.g. Memtest86+).
 
-- **Hardware Stress and Test Tools**  
+- **Hardware Stress and Test Tools**
   Optional entries for focused diagnostics.
 
-- **Advanced / Debug**  
+- **Advanced / Debug**
   Low-level boot options and debugging tools.
 
 ---

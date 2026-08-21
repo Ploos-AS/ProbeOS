@@ -22,7 +22,7 @@ Project homepage: https://probeos.eu
 
 ## Status
 
-ProbeOS is in early development (v0.1).  
+ProbeOS is in early development (v0.1).
 Interfaces, tools, and features are subject to change.
 
 ## Hardware reports
