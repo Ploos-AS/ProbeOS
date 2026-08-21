@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # ProbeOS GUI launcher. Hardware views consume probe-identify reports.
 REPORT_DIR=${PROBE_OUTPUT_DIR:-/run/probeos}
 REPORT_JSON="$REPORT_DIR/report.json"

@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# SPDX-License-Identifier: GPL-3.0-or-later
 # ProbeOS Openbox autostart
 # https://probeos.eu
 # © 2026 Ploos AS

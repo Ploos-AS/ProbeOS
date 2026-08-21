@@ -5,6 +5,6 @@ RUN printf '%s\n' \
       'https://dl-cdn.alpinelinux.org/alpine/v3.19/community' \
       > /etc/apk/repositories \
     && apk add --no-cache \
-      abuild apk-tools bash curl grub-bios grub-efi mtools openssl squashfs-tools syslinux tar unzip xorriso
+      abuild apk-tools bash curl git grub-bios grub-efi mercurial mtools openssl subversion squashfs-tools syslinux tar unzip xorriso
 
 WORKDIR /workspace

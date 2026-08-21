@@ -1,6 +1,6 @@
 # Third-party software and source provenance
 
-The repository MIT license covers ProbeOS-authored material only. The ISO
+The repository GPL-3.0-or-later license covers ProbeOS-authored material only. The ISO
 redistributes the components below under their upstream licenses; ProbeOS does
 not relicense them and is not an official Alpine Linux or Memtest86+ project.
 
@@ -33,12 +33,10 @@ Significant upstream projects include:
 | GNU GRUB | <https://www.gnu.org/software/grub/>; GPLv3+ |
 | SYSLINUX | <https://www.syslinux.org/>; GPLv2 |
 
-This inventory is a provenance aid, not a substitute for the license metadata
-shipped by each package. Before publication, retain the release manifest and
-the exact APK inventory, and make corresponding upstream source available or
-provide a valid source offer where a redistributed license requires it. Legal
-interpretation of a particular distribution method should be reviewed by the
-publisher; this document does not make a legal-compliance warranty.
+Release automation retains exact APK metadata and corresponding source in the
+artifacts described by `docs/release-compliance.md`. Legal interpretation of a
+particular distribution method remains the publisher's responsibility; the
+automation provides traceability and fails closed but is not a legal warranty.
 
 ## Memtest86+
 

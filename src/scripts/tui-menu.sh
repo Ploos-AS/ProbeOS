@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # ProbeOS TUI - presentation layer for probe-identify
 DIALOG=${DIALOG:-dialog}
 REPORT_DIR=${PROBE_OUTPUT_DIR:-/run/probeos}

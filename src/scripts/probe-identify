@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 # ProbeOS Hardware Identification v1
 # Read-only inventory collector. Normal reports never contain an unmasked key.
 set -uo pipefail

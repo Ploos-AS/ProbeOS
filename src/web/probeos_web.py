@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Small report-backed ProbeOS web UI and read-only API.
 
 The service deliberately uses only Python's standard library.  It never runs

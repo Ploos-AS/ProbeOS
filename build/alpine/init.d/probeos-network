@@ -1,4 +1,5 @@
 #!/sbin/openrc-run
+# SPDX-License-Identifier: GPL-3.0-or-later
 # shellcheck shell=sh
 # shellcheck disable=SC2034
 

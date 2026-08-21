@@ -19,7 +19,11 @@ compatibility. CI development artifacts are retained for 14 days. Open a CI
 run in the Actions tab and download `probeos-isos-<commit SHA>`; ordinary
 commits never create permanent GitHub Releases.
 
-Every bundle includes `SHA256SUMS` and `release-manifest.json`. Verify it with:
+Every public release includes `SHA256SUMS`, `release-manifest.json`,
+`SOURCE-MANIFEST.json`, `THIRD-PARTY-MANIFEST.json`, release notes, and the
+versioned `probeos-<version>-source.tar.zst` corresponding-source bundle.
+`SHA256SUMS` covers all four ISOs and all five compliance/publication files.
+Verify it with:
 
 ```sh
 sha256sum -c SHA256SUMS
@@ -91,8 +95,9 @@ git push origin v0.1.0
 The release workflow checks out that tag, rejects non-strict versions, repeats
 validation/build/qualification, verifies checksums and manifest provenance,
 then creates the GitHub Release using the reviewed notes in
-`docs/releases/<tag>.md`. It uploads four versioned ISOs,
-`SHA256SUMS`, and `release-manifest.json`. Do not reuse or move a published tag.
+`docs/releases/<tag>.md`. It uploads the four versioned ISOs, complete source
+bundle, checksums, binary/source/third-party manifests, and release notes. Do
+not reuse or move a published tag.
 
 Workflow dependencies use official GitHub actions pinned to stable major
 versions. CI has `contents: read`; only the tag-triggered release workflow has

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Minimal udhcpc hook; no resolver or persistent configuration is required.
 set -eu
 # udhcpc supplies these variables when invoking its hook.

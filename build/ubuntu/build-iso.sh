@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -eu
 
 echo 'This historical prototype builder is unsupported; use build/alpine/build-container.sh.' >&2

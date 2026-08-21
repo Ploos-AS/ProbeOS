@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Parser/collector library for probe-identify. Functions are fixture-testable.
 
 have() { command -v "$1" >/dev/null 2>&1; }

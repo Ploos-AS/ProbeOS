@@ -124,10 +124,12 @@ local reproduction, and release procedure.
 
 ## License and provenance
 
-ProbeOS-authored source is licensed under the MIT License. Redistributed
+ProbeOS-authored source is licensed under GPL-3.0-or-later. Redistributed
 Alpine packages, bootloaders, Linux, Memtest86+, and other third-party
-components retain their own licenses; the MIT license does not relicense them.
-See [third_party/README.md](third_party/README.md).
+components retain their own licenses; ProbeOS does not relicense them.
+Public releases include exact package inventories, source manifests, and a
+corresponding-source archive. See [release compliance](docs/release-compliance.md)
+and [third-party provenance](third_party/README.md).
 
 Copyright © 2026 Ploos AS
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
 ISO=${1:?usage: qemu-lan-smoke.sh ISO [LOG]}
 LOG=${2:-"${TMPDIR:-/tmp}/$(basename "${ISO%.iso}")-lan.log"}

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Runtime-only wired DHCP/static network helper for ProbeOS.
 set -euo pipefail
 RUNTIME_DIR=${PROBEOS_NETWORK_RUNTIME_DIR:-/run/probeos}
