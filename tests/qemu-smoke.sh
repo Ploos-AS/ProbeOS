@@ -8,6 +8,7 @@ TIMEOUT=${PROBEOS_QEMU_TIMEOUT:-240}
 QEMU=${QEMU:-qemu-system-x86_64}
 qemu_args=(-m 2048 -smp 2 -cdrom "$ISO" -boot d -display none -serial stdio -no-reboot -nic none)
 vars=""
+qemu_pid=""
 
 case "$MODE" in
     bios) expected_firmware=BIOS ;;
@@ -22,15 +23,23 @@ case "$MODE" in
         ;;
     *) echo "unknown firmware mode: $MODE" >&2; exit 2 ;;
 esac
-trap '[[ -z "$vars" ]] || rm -f "$vars"' EXIT
-
-set +e
-timeout "$TIMEOUT" "$QEMU" "${qemu_args[@]}" >"$LOG" 2>&1
-qemu_status=$?
-set -e
-[[ $qemu_status -eq 0 || $qemu_status -eq 124 ]] || { tail -n 80 "$LOG" >&2; exit "$qemu_status"; }
 marker="PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid firmware=$expected_firmware"
-grep -Fq "$marker" "$LOG" || {
+cleanup() {
+    [[ -z $qemu_pid ]] || kill "$qemu_pid" 2>/dev/null || true
+    [[ -z $vars ]] || rm -f "$vars"
+}
+trap cleanup EXIT
+
+rm -f "$LOG"
+timeout "$TIMEOUT" "$QEMU" "${qemu_args[@]}" >"$LOG" 2>&1 &
+qemu_pid=$!
+found=0
+for _ in $(seq 1 "$TIMEOUT"); do
+    if grep -Fq "$marker" "$LOG" 2>/dev/null; then found=1; break; fi
+    kill -0 "$qemu_pid" 2>/dev/null || break
+    sleep 1
+done
+[[ $found == 1 ]] || {
     echo "ProbeOS userspace marker not found; see $LOG" >&2
     tail -n 120 "$LOG" >&2
     exit 1

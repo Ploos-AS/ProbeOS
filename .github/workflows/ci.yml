@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Source and fixture validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install validation tools
+        run: sudo apt-get update && sudo apt-get install -y jq shellcheck
+      - name: Run validation suite
+        run: ci/validate.sh
+
+  build-and-qualify:
+    name: Build and QEMU qualification
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install qualification tools
+        run: sudo apt-get update && sudo apt-get install -y curl jq ovmf qemu-system-x86 xorriso
+      - name: Build normal release artifacts
+        run: ci/build-all.sh
+      - name: Run Linux, offline, LAN/API, and Memtest qualification
+        run: ci/qualify.sh
+      - name: Restore and validate distributable artifacts
+        run: ci/build-all.sh
+      - name: Generate and verify development metadata
+        run: ci/generate-release-metadata.sh
+      - name: Upload ISO development bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: probeos-isos-${{ github.sha }}
+          path: |
+            out/probeos-x86_64-grub.iso
+            out/probeos-x86_64-syslinux.iso
+            out/probeos-x86-grub.iso
+            out/probeos-x86-syslinux.iso
+            out/SHA256SUMS
+            out/release-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: probeos-ci-logs-${{ github.sha }}
+          path: ci-logs/
+          if-no-files-found: warn
+          retention-days: 14

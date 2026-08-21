@@ -53,6 +53,7 @@ done
 echo "[*] Cleaning previous builds"
 rm -rf "$WORKDIR" "$ISODIR" "$MODLOOPDIR" "$KEYDIR"
 mkdir -p "$WORKDIR" "$ISODIR" "$OUTDIR"
+chmod 0777 "$OUTDIR"
 rm -f "$OUTDIR/$ISO_NAME"
 
 echo "[*] Installing Alpine base system and packages"

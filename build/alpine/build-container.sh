@@ -7,7 +7,9 @@ IMAGE=${PROBEOS_BUILD_IMAGE:-probeos-builder:alpine-3.19}
 ARCH=${ARCH:-x86_64}
 BOOTLOADER=${BOOTLOADER:-grub}
 
-docker build -t "$IMAGE" -f "$SCRIPT_DIR/Dockerfile" "$REPO_ROOT"
+if [[ ${PROBEOS_SKIP_DOCKER_BUILD:-0} != 1 ]]; then
+    docker build -t "$IMAGE" -f "$SCRIPT_DIR/Dockerfile" "$REPO_ROOT"
+fi
 docker run --rm --privileged \
     -e ARCH="$ARCH" \
     -e BOOTLOADER="$BOOTLOADER" \

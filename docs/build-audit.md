@@ -148,3 +148,17 @@ QEMU=qemu-system-i386 tests/qemu-smoke.sh out/probeos-x86-syslinux.iso bios
   boot qualification passes.
 - Open-source Memtest86+ v8.10 is now integrated as a direct GRUB standalone
   entry; see [memtest.md](memtest.md) for its provenance and qualification.
+
+## CI and release engineering
+
+GitHub Actions now reproduces this architecture through the same Alpine builder
+container. The fast validation job runs before ISO work; the expensive job
+builds and layout-checks all four architecture/loader variants, runs the five
+qualified offline QEMU Linux paths, exercises x86_64 DHCP/Web/API, and starts
+Memtest86+ v8.10 on its five qualified paths. Temporary LAN- and
+Memtest-default images are never published: the four normal-default artifacts
+are rebuilt before checksums and provenance metadata are generated.
+
+Hosted runners use QEMU TCG when KVM is unavailable. Ubuntu's `ovmf` package
+provides the validated 4M firmware paths. See [releasing.md](releasing.md) for
+workflow structure, runner limitations, local reproduction, and tag releases.

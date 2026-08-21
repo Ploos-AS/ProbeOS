@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  validate-build-qualify-release:
+    name: Validate, build, qualify, and release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Validate SemVer release tag
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+      - name: Install validation and qualification tools
+        run: sudo apt-get update && sudo apt-get install -y curl jq ovmf qemu-system-x86 shellcheck xorriso
+      - name: Run validation suite
+        run: ci/validate.sh
+      - name: Build normal artifacts
+        run: ci/build-all.sh
+      - name: Run required qualification
+        run: ci/qualify.sh
+      - name: Restore distributable artifacts and verify layouts
+        run: ci/build-all.sh
+      - name: Generate and verify tagged release metadata
+        env:
+          PROBEOS_VERSION: ${{ github.ref_name }}
+        run: ci/generate-release-metadata.sh
+      - name: Prepare stable release notes header
+        run: |
+          mkdir -p release
+          printf '%s\n\n%s\n\n%s\n%s\n%s\n%s\n' \
+            'ProbeOS is a lightweight, bootable Linux environment for hardware inspection, diagnostics, and performance benchmarking.' \
+            'ISO variants:' \
+            '- **x86_64 GRUB:** modern/general-purpose x86_64, BIOS + UEFI' \
+            '- **x86_64 SYSLINUX:** legacy BIOS compatibility' \
+            '- **x86 GRUB:** 32-bit x86, legacy/older systems' \
+            '- **x86 SYSLINUX:** maximum legacy x86 BIOS compatibility' > release/header.md
+      - name: Create GitHub Release and upload verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd out && sha256sum -c SHA256SUMS)
+          jq -e --arg sha "$GITHUB_SHA" --arg version "$GITHUB_REF_NAME" \
+            '.git_commit==$sha and .probeos_version==$version and (.artifacts|length)==4' \
+            out/release-manifest.json >/dev/null
+          gh release create "$GITHUB_REF_NAME" \
+            out/probeos-x86_64-grub.iso \
+            out/probeos-x86_64-syslinux.iso \
+            out/probeos-x86-grub.iso \
+            out/probeos-x86-syslinux.iso \
+            out/SHA256SUMS out/release-manifest.json \
+            --verify-tag --notes-file release/header.md \
+            --title "ProbeOS $GITHUB_REF_NAME"
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: probeos-release-failure-logs-${{ github.sha }}
+          path: ci-logs/
+          if-no-files-found: warn
+          retention-days: 14

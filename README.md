@@ -74,6 +74,19 @@ ProbeOS also includes the offline, open-source Memtest86+ v8.10 boot option;
 see [`docs/memtest.md`](docs/memtest.md) for provenance, licensing, and
 qualification details. It is distinct from the proprietary PassMark MemTest86.
 
+## Continuous integration and releases
+
+GitHub Actions validates source and fixtures, builds all four ISO variants with
+the same containerized builder used locally, checks their layouts, and runs the
+qualified Linux, offline, LAN/Web/API, and Memtest86+ QEMU smoke tests. Successful
+CI runs provide a 14-day `probeos-isos-<commit SHA>` development artifact with
+the ISOs, `SHA256SUMS`, and `release-manifest.json`.
+
+Strict SemVer tags such as `v0.1.0` run the same pipeline and create a GitHub
+Release only after qualification succeeds. See [docs/releasing.md](docs/releasing.md)
+for the artifact matrix, hosted-runner limitations, checksum verification,
+local reproduction, and release procedure.
+
 ---
 
 ## License

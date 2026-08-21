@@ -1,5 +1,6 @@
 # Build artifacts
 /out/
+/ci-logs/
 /build/**/*.iso
 /build/**/*.img
 /build/**/*.squashfs
