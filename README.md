@@ -20,10 +20,13 @@ Project homepage: https://probeos.eu
 
 ---
 
-## Status
+## ProbeOS v0.1.0
 
-ProbeOS is in early development (v0.1).
-Interfaces, tools, and features are subject to change.
+v0.1.0 is the first qualified public ProbeOS release. It provides Hardware
+Identification v1, authoritative text and JSON reports, local TUI/GUI access,
+an optional trusted-LAN Web UI and read-only `/api/v1` API, offline operation,
+and open-source Memtest86+ 8.10. It is an initial qualified release, not a
+claim of universal physical-hardware compatibility or certification.
 
 ## Hardware reports
 
@@ -35,6 +38,24 @@ See
 sources, Windows OEM-license handling, privacy guidance, and limitations.
 See [docs/web-api.md](docs/web-api.md) and [docs/networking.md](docs/networking.md)
 for Web/API and LAN operation.
+
+## Choose an image
+
+| Image | Choose it for | Qualified firmware |
+| --- | --- | --- |
+| `probeos-0.1.0-x86_64-grub.iso` | Preferred general x86_64 image | BIOS (SeaBIOS), x86_64 UEFI (OVMF) |
+| `probeos-0.1.0-x86_64-syslinux.iso` | x86_64 Linux on the legacy BIOS path | BIOS (SeaBIOS) |
+| `probeos-0.1.0-x86-grub.iso` | 32-bit x86 ProbeOS | BIOS (SeaBIOS) |
+| `probeos-0.1.0-x86-syslinux.iso` | 32-bit x86 on the SYSLINUX legacy BIOS path | BIOS (SeaBIOS) |
+
+These are QEMU qualifications, not proof that every physical PC will boot.
+There is no IA32 UEFI or Secure Boot claim. See
+[the compatibility matrix](docs/release-readiness.md#qualification-matrix)
+and [known limitations](docs/release-readiness.md#known-limitations).
+
+Write the selected ISO to USB using an image-writing tool, or attach it as
+virtual optical media. Normal ProbeOS is the default; Memtest86+ is an explicit
+menu choice. Text mode opens the TUI; GUI mode starts the local desktop.
 
 ## Build and boot
 
@@ -56,7 +77,7 @@ ARCH=x86 build/alpine/build-container.sh
 QEMU=qemu-system-i386 tests/qemu-smoke.sh out/probeos-x86-grub.iso bios
 ```
 
-These commands produce `probeos-x86_64-grub.iso`,
+Development builds produce `probeos-x86_64-grub.iso`,
 `probeos-x86_64-syslinux.iso`, `probeos-x86-grub.iso`, and
 `probeos-x86-syslinux.iso` under `out/`. SYSLINUX configuration is maintained
 at [`boot/syslinux/isolinux.cfg`](boot/syslinux/isolinux.cfg).
@@ -74,6 +95,16 @@ ProbeOS also includes the offline, open-source Memtest86+ v8.10 boot option;
 see [`docs/memtest.md`](docs/memtest.md) for provenance, licensing, and
 qualification details. It is distinct from the proprietary PassMark MemTest86.
 
+ProbeOS first attempts wired DHCP but remains usable with no network. The Web
+UI starts on `http://127.0.0.1:8080/`; LAN binding is an explicit runtime choice
+for trusted networks only. See [networking](docs/networking.md).
+
+Release downloads include `SHA256SUMS`. From the download directory run:
+
+```sh
+sha256sum -c SHA256SUMS
+```
+
 ## Continuous integration and releases
 
 GitHub Actions validates source and fixtures, builds all four ISO variants with
@@ -82,16 +113,21 @@ qualified Linux, offline, LAN/Web/API, and Memtest86+ QEMU smoke tests. Successf
 CI runs provide a 14-day `probeos-isos-<commit SHA>` development artifact with
 the ISOs, `SHA256SUMS`, and `release-manifest.json`.
 
-Strict SemVer tags such as `v0.1.0` run the same pipeline and create a GitHub
-Release only after qualification succeeds. See [docs/releasing.md](docs/releasing.md)
+Strict SemVer tags such as `v0.1.0` run the same pipeline and create versioned
+public filenames. Development artifacts retain stable names and identify
+themselves as development builds; only an exact tag is an official release.
+Tags create a GitHub Release only after qualification succeeds. See [docs/releasing.md](docs/releasing.md)
 for the artifact matrix, hosted-runner limitations, checksum verification,
 local reproduction, and release procedure.
 
 ---
 
-## License
+## License and provenance
 
-ProbeOS is open-source software licensed under the MIT License.
+ProbeOS-authored source is licensed under the MIT License. Redistributed
+Alpine packages, bootloaders, Linux, Memtest86+, and other third-party
+components retain their own licenses; the MIT license does not relicense them.
+See [third_party/README.md](third_party/README.md).
 
 Copyright © 2026 Ploos AS
 

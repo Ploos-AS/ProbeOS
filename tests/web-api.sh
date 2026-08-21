@@ -9,6 +9,7 @@ trap 'if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait
 PROBE_FIXTURE_DIR="$ROOT/tests/fixtures/full" \
   "$ROOT/src/scripts/probe-identify" --output-dir "$WORK/report" --no-windows-mount >/dev/null
 PROBEOS_REPORT_DIR="$WORK/report" PROBEOS_WEB_QUIET=1 \
+  PROBEOS_RELEASE_FILE="$WORK/probeos-release" \
   python3 "$ROOT/src/web/probeos_web.py" --bind 127.0.0.1 --port "$PORT" >/dev/null 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 50); do
@@ -17,7 +18,7 @@ for _ in $(seq 1 50); do
 done
 
 health=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/health")
-jq -e '.service=="running" and .api_version=="1" and .report_available==true and (.report_generated_at|type)=="string"' <<<"$health" >/dev/null
+jq -e '.service=="running" and .api_version=="1" and .product_version=="development" and .build_channel=="development" and .report_available==true and (.report_generated_at|type)=="string"' <<<"$health" >/dev/null
 report=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report")
 jq empty <<<"$report"
 jq -e '.schema_version=="1.0" and (.cpu|type)=="array" and (.windows|type)=="object"' <<<"$report" >/dev/null

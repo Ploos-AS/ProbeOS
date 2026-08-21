@@ -33,6 +33,10 @@ Unknown API paths return a JSON 404. A missing or malformed report returns
 503 from report-backed endpoints; health remains lightweight and reports
 report_available: false. Health never starts a probe.
 
+Health also returns the ProbeOS product version, build channel, Git commit and
+architecture from `/etc/probeos-release`. `api_version: "1"` describes the
+`/api/v1` contract; it does not mean ProbeOS 1.0.
+
 ## Privacy
 
 Normal UI/API responses redact keys containing system, board, storage, DIMM or

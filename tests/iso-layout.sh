@@ -11,7 +11,9 @@ esac
 
 listing=$(xorriso -indev "$ISO" -find / -type f -exec lsdl 2>/dev/null)
 boot_cfg=$(mktemp "${TMPDIR:-/tmp}/probeos-boot.cfg.XXXXXX")
-trap 'rm -f "$boot_cfg"' EXIT
+overlay=$(mktemp "${TMPDIR:-/tmp}/probeos-overlay.XXXXXX")
+overlay_listing=$(mktemp "${TMPDIR:-/tmp}/probeos-overlay-list.XXXXXX")
+trap 'rm -f "$boot_cfg" "$overlay" "$overlay_listing"' EXIT
 case $(basename "$ISO") in
     *-grub.iso)
         bootloader=grub
@@ -34,12 +36,24 @@ for path in \
     '/probeos.apkovl.tar.gz'; do
     grep -Fq "'$path'" <<<"$listing" || { echo "ISO file missing: $path" >&2; exit 1; }
 done
+xorriso -osirrox on -indev "$ISO" -extract /probeos.apkovl.tar.gz "$overlay" >/dev/null 2>&1
+tar -tzf "$overlay" > "$overlay_listing"
+grep -Eq '^etc/probeos-release$' "$overlay_listing" || {
+    echo 'runtime ProbeOS identity missing from overlay' >&2
+    exit 1
+}
 grep -Fq "'$config_path'" <<<"$listing" || { echo "boot config missing: $config_path" >&2; exit 1; }
 grep -Fq "/apks/$arch/APKINDEX.tar.gz" <<<"$listing" || { echo 'offline APK index missing' >&2; exit 1; }
 grep -Fq 'ProbeOS - Memory Test (Memtest86+)' "$boot_cfg" || {
     echo "Memtest86+ $bootloader entry missing" >&2
     exit 1
 }
+if [[ $bootloader == grub ]]; then
+    grep -Eq '^set default=1$' "$boot_cfg" || {
+        echo 'normal ProbeOS text entry is not the GRUB default' >&2
+        exit 1
+    }
+fi
 if [[ $bootloader == syslinux ]]; then
     for path in isolinux.bin ldlinux.c32 menu.c32 libcom32.c32 libutil.c32; do
         grep -Fq "'/boot/syslinux/$path'" <<<"$listing" || {

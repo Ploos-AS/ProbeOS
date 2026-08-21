@@ -144,7 +144,8 @@ ProbeOS exports hardware inspection results:
 - Timestamped copies through the frontends
 - Non-persistent by default unless saved by the user
 
-All reports include basic provenance information (ProbeOS version, timestamp).
+All reports include basic provenance information (ProbeOS product/build
+identity, collector version, commit when available, architecture, timestamp).
 
 ---
 

@@ -23,6 +23,23 @@ API_SECTIONS = {name: name for name in SECTIONS}
 SENSITIVE = re.compile(r"(?:^|_)(?:serial|uuid|mac)(?:_|$)|^(?:serial|uuid)$", re.I)
 
 
+def load_identity():
+    values = {"product_version": "development", "build_channel": "development",
+              "git_commit": "unknown", "architecture": "unknown"}
+    path = os.environ.get("PROBEOS_RELEASE_FILE", "/etc/probeos-release")
+    keys = {"PROBEOS_VERSION": "product_version", "PROBEOS_BUILD_CHANNEL": "build_channel",
+            "PROBEOS_GIT_COMMIT": "git_commit", "PROBEOS_ARCHITECTURE": "architecture"}
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            for line in stream:
+                key, separator, value = line.rstrip("\n").partition("=")
+                if separator and key in keys:
+                    values[keys[key]] = value
+    except OSError:
+        pass
+    return values
+
+
 def load_report(report_dir):
     path = os.path.join(report_dir, "report.json")
     try:
@@ -94,7 +111,7 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
         if path == "/api/v1/health":
             report, _ = load_report(self.report_dir)
             generated = report.get("probeos", {}).get("generated_at") if report else None
-            self.send_json({"service": "running", "api_version": "1", "report_available": report is not None,
+            self.send_json({"service": "running", "api_version": "1", **load_identity(), "report_available": report is not None,
                             "report_generated_at": generated})
             return
         if path.startswith("/api/v1"):
@@ -123,7 +140,10 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
             return
         report, error = self.report_view(query)
         if path == "/about":
-            body = "<p>ProbeOS is an offline-first hardware inspection environment.</p>"
+            identity = load_identity()
+            body = "<p>ProbeOS " + html.escape(identity["product_version"]) + " (" + html.escape(identity["build_channel"]) + " build)</p>"
+            body += "<p>Commit: " + html.escape(identity["git_commit"]) + "; architecture: " + html.escape(identity["architecture"]) + ".</p>"
+            body += "<p>ProbeOS is an offline-first hardware inspection environment.</p>"
             body += "<p>This interface reads the authoritative probe-identify report; it does not run a probe per request.</p>"
         elif path == "/benchmarks":
             body = "<p>Benchmark execution is intentionally not available from the unauthenticated web/API layer.</p>"

@@ -4,6 +4,15 @@
 set -uo pipefail
 
 VERSION="1.0"
+RELEASE_FILE=${PROBEOS_RELEASE_FILE:-/etc/probeos-release}
+PRODUCT_VERSION=development
+BUILD_CHANNEL=development
+GIT_COMMIT=unknown
+if [[ -r $RELEASE_FILE ]]; then
+    PRODUCT_VERSION=$(sed -n 's/^PROBEOS_VERSION=//p' "$RELEASE_FILE" | head -n1)
+    BUILD_CHANNEL=$(sed -n 's/^PROBEOS_BUILD_CHANNEL=//p' "$RELEASE_FILE" | head -n1)
+    GIT_COMMIT=$(sed -n 's/^PROBEOS_GIT_COMMIT=//p' "$RELEASE_FILE" | head -n1)
+fi
 OUTPUT_DIR="${PROBE_OUTPUT_DIR:-/run/probeos}"
 FIXTURE_DIR="${PROBE_FIXTURE_DIR:-}"
 ALLOW_WINDOWS_MOUNT="${PROBE_ALLOW_WINDOWS_MOUNT:-1}"
@@ -140,7 +149,9 @@ sensors_json=$(parse_sensors "$TMP/sensors")
 power_json=$(parse_power)
 
 jq -n \
-    --arg version "$VERSION" --arg generated "$timestamp" --arg hostname "$hostname_value" \
+    --arg version "$VERSION" --arg product_version "$PRODUCT_VERSION" \
+    --arg build_channel "$BUILD_CHANNEL" --arg git_commit "$GIT_COMMIT" \
+    --arg generated "$timestamp" --arg hostname "$hostname_value" \
     --arg kernel "$kernel_value" --arg arch "$arch_value" \
     --argjson system "$system_json" --argjson firmware "$firmware_json" \
     --argjson motherboard "$motherboard_json" --argjson cpu "$cpu_json" \
@@ -149,7 +160,7 @@ jq -n \
     --argjson network "$network_json" --argjson sensors "$sensors_json" \
     --argjson power "$power_json" --argjson firmware_license "$firmware_license_json" \
     --argjson installations "$windows_json" \
-    'def n($x):if $x=="" then null else $x end; {schema_version:"1.0",probeos:{tool:"probe-identify",version:$version,generated_at:$generated,hostname:n($hostname),kernel:n($kernel),architecture:n($arch)},system:$system,firmware:$firmware,motherboard:$motherboard,cpu:$cpu,memory:$memory,pci:$pci,usb:$usb,graphics:$graphics,storage:$storage,network:$network,sensors:$sensors,power:$power,windows:{firmware_license:$firmware_license,installations:$installations}}' \
+    'def n($x):if $x=="" then null else $x end; {schema_version:"1.0",probeos:{product_version:$product_version,build_channel:$build_channel,git_commit:n($git_commit),tool:"probe-identify",tool_version:$version,generated_at:$generated,hostname:n($hostname),kernel:n($kernel),architecture:n($arch)},system:$system,firmware:$firmware,motherboard:$motherboard,cpu:$cpu,memory:$memory,pci:$pci,usb:$usb,graphics:$graphics,storage:$storage,network:$network,sensors:$sensors,power:$power,windows:{firmware_license:$firmware_license,installations:$installations}}' \
     > "$OUTPUT_DIR/report.json.tmp" || exit 1
 jq empty "$OUTPUT_DIR/report.json.tmp" || exit 1
 mv "$OUTPUT_DIR/report.json.tmp" "$OUTPUT_DIR/report.json"

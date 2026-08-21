@@ -24,7 +24,7 @@ SHA-256 before extraction, and copies only the architecture-specific member to
 | ProbeOS architecture | Upstream member | Boot support |
 | --- | --- | --- |
 | x86_64 | `mt86p_810_x86_64` | 64-bit legacy BIOS, 64-bit UEFI, and GRUB Linux handover |
-| x86 | `mt86p_810_i586` | 32-bit legacy BIOS, 32-bit UEFI, and GRUB Linux handover |
+| x86 | `mt86p_810_i586` | i586 payload used on the qualified legacy BIOS paths |
 
 The upstream x86_64 source build was independently checked. The upstream i586
 source build currently fails with Alpine 3.19 GCC at an xHCI structure
@@ -54,11 +54,12 @@ Memtest entry, run QEMU with `-nic none`, and require serial output containing
 | x86 SeaBIOS + GRUB | `mt86p_810_i586` | PASS: active v8.10 x32 test screen |
 | x86_64 SeaBIOS + SYSLINUX | `mt86p_810_x86_64` | PASS: active v8.10 x64 test screen |
 | x86 SeaBIOS + SYSLINUX | `mt86p_810_i586` | PASS: active v8.10 x32 test screen |
-| x86 IA32 UEFI | `mt86p_810_i586` | Upstream-supported; not qualified because no IA32 OVMF firmware is installed |
+| x86 IA32 UEFI | `mt86p_810_i586` | NOT QUALIFIED; no v0.1.0 support claim |
 
 IA32 UEFI is not presented as a separate menu option: the architecture's
 single GRUB entry selects the i586 payload, and actual firmware support remains
-dependent on the target machine. Secure Boot is outside this milestone.
+dependent on the target machine. Secure Boot is unsupported/not qualified for
+v0.1.0.
 
 To reproduce the dedicated tests, build a temporary Memtest-default ISO and
 then restore a normal-default build before publishing artifacts:

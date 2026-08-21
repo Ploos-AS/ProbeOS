@@ -20,3 +20,4 @@ tests/run-tests.sh
 tests/web-api.sh
 tests/network.sh
 tests/package-resolution.sh
+tests/release-metadata.sh

@@ -30,6 +30,11 @@ MEMTEST_ARCHIVE_URL="https://memtest.org/download/v${MEMTEST_VERSION}/mt86plus_$
 MEMTEST_ARCHIVE_SHA256="7e6c5162cb84ab959aeb9d13c9cfd6976b0dec3b34936b73820b20c55eb26c29"
 GRUB_DEFAULT="${GRUB_DEFAULT:-1}"
 WEB_BIND="${PROBEOS_WEB_BIND:-127.0.0.1}"
+PROBEOS_VERSION=${PROBEOS_VERSION:-development}
+PROBEOS_BUILD_CHANNEL=${PROBEOS_BUILD_CHANNEL:-development}
+PROBEOS_GIT_COMMIT=${PROBEOS_GIT_COMMIT:-unknown}
+PROBEOS_GIT_SHORT_SHA=${PROBEOS_GIT_SHORT_SHA:-unknown}
+PROBEOS_ARCHITECTURE=${PROBEOS_ARCHITECTURE:-$ARCH}
 case "$ARCH" in
     x86_64) MEMTEST_MEMBER="mt86p_810_x86_64" ;;
     x86) MEMTEST_MEMBER="mt86p_810_i586" ;;
@@ -45,7 +50,7 @@ fi
 for command_name in "${required_commands[@]}"; do
     command -v "$command_name" >/dev/null 2>&1 || {
         echo "[!] Missing build command: $command_name" >&2
-        echo "[!] Use build/alpine/build-container.sh for a reproducible build." >&2
+        echo "[!] Use build/alpine/build-container.sh for the supported repeatable build." >&2
         exit 1
     }
 done
@@ -72,9 +77,18 @@ echo "[*] Configuring system"
 echo "probeos" > "$WORKDIR/etc/hostname"
 
 cat > "$WORKDIR/etc/motd" <<EOF
-ProbeOS
+ProbeOS $PROBEOS_VERSION ($PROBEOS_BUILD_CHANNEL build)
+commit: $PROBEOS_GIT_SHORT_SHA
 https://probeos.eu
 © 2026 Ploos AS
+EOF
+
+cat > "$WORKDIR/etc/probeos-release" <<EOF
+PROBEOS_VERSION=$PROBEOS_VERSION
+PROBEOS_BUILD_CHANNEL=$PROBEOS_BUILD_CHANNEL
+PROBEOS_GIT_COMMIT=$PROBEOS_GIT_COMMIT
+PROBEOS_GIT_SHORT_SHA=$PROBEOS_GIT_SHORT_SHA
+PROBEOS_ARCHITECTURE=$PROBEOS_ARCHITECTURE
 EOF
 
 echo "root:probeos" | chroot "$WORKDIR" /bin/busybox chpasswd
@@ -122,9 +136,6 @@ echo "[*] Installing visual assets"
 
 mkdir -p "$WORKDIR/usr/share/probeos"
 cp "$REPO_ROOT/assets/logo/logo.png" "$WORKDIR/usr/share/probeos/"
-if [ -f "$REPO_ROOT/assets/generated/wallpaper.png" ]; then
-    cp "$REPO_ROOT/assets/generated/wallpaper.png" "$WORKDIR/usr/share/probeos/wallpaper.png"
-fi
 
 # =========================================
 # Openbox configuration

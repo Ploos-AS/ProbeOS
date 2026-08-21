@@ -95,7 +95,7 @@ PROBEOS_ACTIVE_TIMEOUT=${PROBEOS_LAN_TIMEOUT:-${PROBEOS_QEMU_TIMEOUT:-300}} run_
     "$ROOT/tests/qemu-lan-smoke.sh" "$ROOT/out/probeos-x86_64-grub.iso" "$lan_log"
 restore_artifacts
 
-# Memtest qualification uses deterministic default-menu derivatives. The four
+# Memtest qualification uses controlled default-menu derivatives. The four
 # normal artifacts above remain in BACKUP_DIR and are restored after each build.
 for arch in x86_64 x86; do
     for bootloader in grub syslinux; do

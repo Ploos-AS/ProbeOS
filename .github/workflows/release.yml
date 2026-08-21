@@ -38,34 +38,27 @@ jobs:
       - name: Run required qualification
         run: ci/qualify.sh
       - name: Generate and verify tagged release metadata
-        env:
-          PROBEOS_VERSION: ${{ github.ref_name }}
         run: ci/generate-release-metadata.sh
-      - name: Prepare stable release notes header
+      - name: Select reviewed release notes
         run: |
-          mkdir -p release
-          printf '%s\n\n%s\n\n%s\n%s\n%s\n%s\n' \
-            'ProbeOS is a lightweight, bootable Linux environment for hardware inspection, diagnostics, and performance benchmarking.' \
-            'ISO variants:' \
-            '- **x86_64 GRUB:** modern/general-purpose x86_64, BIOS + UEFI' \
-            '- **x86_64 SYSLINUX:** legacy BIOS compatibility' \
-            '- **x86 GRUB:** 32-bit x86, legacy/older systems' \
-            '- **x86 SYSLINUX:** maximum legacy x86 BIOS compatibility' > release/header.md
+          test -f "docs/releases/$GITHUB_REF_NAME.md"
       - name: Create GitHub Release and upload verified assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           (cd out && sha256sum -c SHA256SUMS)
-          jq -e --arg sha "$GITHUB_SHA" --arg version "$GITHUB_REF_NAME" \
-            '.git_commit==$sha and .probeos_version==$version and (.artifacts|length)==4' \
+          version="${GITHUB_REF_NAME#v}"
+          jq -e --arg sha "$GITHUB_SHA" --arg version "$version" \
+            '.manifest_version==1 and .git_commit==$sha and .probeos_version==$version and
+             .build_channel=="release" and (.artifacts|length)==4' \
             out/release-manifest.json >/dev/null
           gh release create "$GITHUB_REF_NAME" \
-            out/probeos-x86_64-grub.iso \
-            out/probeos-x86_64-syslinux.iso \
-            out/probeos-x86-grub.iso \
-            out/probeos-x86-syslinux.iso \
+            "out/probeos-$version-x86_64-grub.iso" \
+            "out/probeos-$version-x86_64-syslinux.iso" \
+            "out/probeos-$version-x86-grub.iso" \
+            "out/probeos-$version-x86-syslinux.iso" \
             out/SHA256SUMS out/release-manifest.json \
-            --verify-tag --notes-file release/header.md \
+            --verify-tag --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
             --title "ProbeOS $GITHUB_REF_NAME"
       - name: Upload diagnostic logs on failure
         if: failure()

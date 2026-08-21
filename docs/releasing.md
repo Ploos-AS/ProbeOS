@@ -9,10 +9,10 @@ such as `v0.1.0` and publishes only after every check passes.
 
 | File | Intended systems | Firmware |
 | --- | --- | --- |
-| `probeos-x86_64-grub.iso` | Modern/general-purpose x86_64 | BIOS and UEFI |
-| `probeos-x86_64-syslinux.iso` | Legacy x86_64 compatibility | BIOS |
-| `probeos-x86-grub.iso` | 32-bit x86 and older systems | BIOS |
-| `probeos-x86-syslinux.iso` | Maximum legacy x86 compatibility | BIOS |
+| `probeos-<version>-x86_64-grub.iso` | Preferred general x86_64 | BIOS and x86_64 UEFI |
+| `probeos-<version>-x86_64-syslinux.iso` | x86_64 legacy BIOS path | BIOS |
+| `probeos-<version>-x86-grub.iso` | 32-bit x86 | BIOS |
+| `probeos-<version>-x86-syslinux.iso` | 32-bit x86 SYSLINUX path | BIOS |
 
 These descriptions state the qualified boot paths, not universal hardware
 compatibility. CI development artifacts are retained for 14 days. Open a CI
@@ -25,9 +25,10 @@ Every bundle includes `SHA256SUMS` and `release-manifest.json`. Verify it with:
 sha256sum -c SHA256SUMS
 ```
 
-The JSON manifest records its schema version, ProbeOS version, full and short
-git SHA, UTC build timestamp, Alpine and Memtest86+ versions, and each ISO's
-filename, byte size, SHA-256, architecture, and bootloader.
+The JSON manifest records numeric `manifest_version`, ProbeOS version and build
+channel, full and short Git SHA, UTC metadata-generation timestamp, Alpine and
+Memtest86+ versions, and each ISO's filename, byte size, SHA-256, architecture,
+bootloader, and firmware capabilities.
 
 ## Qualification and hosted-runner limits
 
@@ -39,7 +40,7 @@ checks every layout before running QEMU.
 
 Linux userspace qualification covers x86_64 GRUB under SeaBIOS and OVMF, x86
 GRUB under SeaBIOS, and both SYSLINUX architectures under SeaBIOS. Each test
-uses `-nic none` and requires the deterministic marker proving `/sbin/init`,
+uses `-nic none` and requires the stable qualification marker proving `/sbin/init`,
 `probe-identify`, valid `report.json`, and the expected firmware mode. A
 separate x86_64 GRUB test proves QEMU DHCP, the forwarded Web service, health
 and report APIs, valid JSON, and redaction. Memtest-default temporary builds
@@ -68,9 +69,15 @@ ci/build-all.sh
 ci/generate-release-metadata.sh
 ```
 
-The second build restores normal-default distributable ISOs after deterministic
-Memtest qualification. The Dockerfile remains the authoritative Alpine build
+`ci/qualify.sh` preserves and restores the original normal-default distributable
+ISOs around qualification derivatives. The Dockerfile remains the authoritative Alpine build
 environment; the workflows do not duplicate it.
+
+Ordinary commits are runtime-labelled `development` and use stable artifact
+names. An exact SemVer tag is runtime-labelled `release` and packages the
+qualified bytes with versioned names. For a non-release dry run, use
+`PROBEOS_RC_VERSION=0.1.0-rc.1`; it is explicitly labelled
+`release-candidate`. See `release-readiness.md` for the identity format.
 
 ## Publish a release
 
@@ -83,7 +90,8 @@ git push origin v0.1.0
 
 The release workflow checks out that tag, rejects non-strict versions, repeats
 validation/build/qualification, verifies checksums and manifest provenance,
-then creates the GitHub Release with stable variant notes. It uploads four ISOs,
+then creates the GitHub Release using the reviewed notes in
+`docs/releases/<tag>.md`. It uploads four versioned ISOs,
 `SHA256SUMS`, and `release-manifest.json`. Do not reuse or move a published tag.
 
 Workflow dependencies use official GitHub actions pinned to stable major

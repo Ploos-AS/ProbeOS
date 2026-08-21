@@ -47,8 +47,9 @@ windows.firmware_license
 windows.installations[]
 ```
 
-`probeos` records tool/version, UTC generation time, host name, kernel, and
-architecture. System and motherboard objects contain DMI identity. CPU entries
+`probeos` records product version, build channel, Git commit, collector
+tool/version, UTC generation time, host name, kernel, and architecture. Product
+version is separate from report schema version. System and motherboard objects contain DMI identity. CPU entries
 contain exact model, topology, family/model/stepping, frequency/cache fields,
 flags, virtualization, and microcode when available. Memory records usable RAM,
 slot counts, and populated DIMMs. Device arrays retain numeric IDs and drivers

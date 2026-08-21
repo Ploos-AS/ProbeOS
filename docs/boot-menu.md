@@ -27,16 +27,11 @@ Goals:
 
 ---
 
-## 2. Top-Level Boot Menu
+## 2. Current generated menus
 
-ProbeOS
-- Start ProbeOS (GUI)
-- Start ProbeOS (Text / Curses)
-- Hardware Stress & Benchmarks
-- Disk & Storage Tools
-- Memory Test (Memtest86+)
-- Firmware / Low-Level Tools
-- Advanced / Debug
+GRUB contains ProbeOS GUI, ProbeOS Text / Curses, and the explicit Memtest86+
+entry. SYSLINUX contains Hardware Identification, Serial Console, Verbose /
+Debug, and the explicit Memtest86+ entry.
 
 The normal generated ISO defaults to **Start ProbeOS (Text / Curses)** so that
 serial and headless qualification has a stable console. Memtest is never the
@@ -73,54 +68,25 @@ Characteristics:
 
 ---
 
-### 3.3 Hardware Stress & Benchmarks
+### 3.3 Local diagnostics and benchmarks
 
-Submenu:
-
-- CPU Stress Test
-- Memory Stress Test
-- GPU Test
-- Run All Benchmarks
-
-These entries boot into ProbeOS with predefined modes or flags that automatically
-launch the corresponding tools.
+The local GUI/TUI exposes the currently packaged information and benchmark
+tools. They are not separate boot-menu entries and cannot be started by the
+Web/API service.
 
 ---
 
-### 3.4 Disk & Storage Tools
-
-Submenu (read-only by default):
-
-- SMART Status
-- NVMe Information
-- Disk Performance Test
-
----
-
-### 3.5 Memory Test (Memtest86+)
+### 3.4 Memory Test (Memtest86+)
 
 - Boots Memtest86+ as a standalone environment
 - No operating system is loaded
 
 ---
 
-### 3.6 Firmware / Low-Level Tools
+### 3.5 Verbose / Debug
 
-Submenu:
-
-- ACPI / BIOS Tests
-- EFI Information
-- DMI / SMBIOS Viewer
-
----
-
-### 3.7 Advanced / Debug
-
-- Drop to Shell
-- Disable KMS
-- Disable ACPI
-- Verbose Boot
-- Recovery Shell
+The SYSLINUX image has one clearly labelled verbose/debug entry. GRUB does not
+currently provide a separate debug submenu.
 
 ---
 

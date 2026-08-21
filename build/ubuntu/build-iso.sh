@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eu
 
+echo 'This historical prototype builder is unsupported; use build/alpine/build-container.sh.' >&2
+exit 2
+
 # ProbeOS ISO build on Ubuntu/Debian host
 # Uses Alpine minirootfs
 # https://probeos.eu
