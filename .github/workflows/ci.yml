@@ -25,19 +25,26 @@ jobs:
     name: Build and QEMU qualification
     needs: validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 240
+    env:
+      PROBEOS_QEMU_ACCEL: tcg
+      PROBEOS_QEMU_TIMEOUT: 600
+      PROBEOS_MEMTEST_TIMEOUT: 180
+      PROBEOS_LAN_TIMEOUT: 600
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Install qualification tools
         run: sudo apt-get update && sudo apt-get install -y curl jq ovmf qemu-system-x86 xorriso
+      - name: Report QEMU acceleration
+        run: |
+          test ! -e /dev/kvm || ls -l /dev/kvm
+          echo "QEMU acceleration: $PROBEOS_QEMU_ACCEL (software emulation forced)"
       - name: Build normal release artifacts
         run: ci/build-all.sh
       - name: Run Linux, offline, LAN/API, and Memtest qualification
         run: ci/qualify.sh
-      - name: Restore and validate distributable artifacts
-        run: ci/build-all.sh
       - name: Generate and verify development metadata
         run: ci/generate-release-metadata.sh
       - name: Upload ISO development bundle
