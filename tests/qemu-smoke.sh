@@ -28,7 +28,7 @@ case "$MODE" in
         ;;
     *) echo "unknown firmware mode: $MODE" >&2; exit 2 ;;
 esac
-marker="PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid diagnostics_json=valid"
+marker="PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid diagnostics_json=valid benchmark_engine=present benchmark_schema=1.0"
 cleanup() {
     [[ -z $qemu_pid ]] || kill "$qemu_pid" 2>/dev/null || true
     [[ -z $vars ]] || rm -f "$vars"
@@ -62,4 +62,4 @@ case $(basename "$ISO") in
         }
         ;;
 esac
-echo "ok - $MODE reached ProbeOS userspace and generated valid hardware and Quick Check reports"
+echo "ok - $MODE reached ProbeOS userspace with valid hardware/Quick Check reports and benchmark engine/schema"

@@ -73,7 +73,20 @@ def diagnostic_summary(diagnostics):
                     "categories": diagnostics.get("category_summary") or {}})
 
 
-def sale(report, diagnostics=None):
+def benchmark_summary(benchmarks):
+    if not benchmarks or not benchmarks.get("results"):
+        return None
+    summary = []
+    for item in benchmarks["results"]:
+        entry = {"benchmark": item.get("benchmark_name"), "status": item.get("status")}
+        if item.get("category") == "storage" and item.get("status") == "COMPLETED":
+            measurement = next((x for x in item.get("measurements", []) if x.get("name") == "throughput"), None)
+            if measurement: entry["primary_measurement"] = "%s %s" % (measurement.get("value"), measurement.get("unit"))
+        summary.append(compact(entry))
+    return summary
+
+
+def sale(report, diagnostics=None, benchmarks=None):
     cpus = report.get("cpu") or []
     cpu = cpus[0] if cpus else {}
     dimms = (report.get("memory") or {}).get("dimms") or []
@@ -97,7 +110,7 @@ def sale(report, diagnostics=None):
                                 "architecture": item.get("architecture"),
                                 "recoverable_key": item.get("recoverable_key_status")}))
     firmware_license = (report.get("windows") or {}).get("firmware_license") or {}
-    return compact({
+    model = compact({
         "profile": "sale", "generated_at": (report.get("probeos") or {}).get("generated_at"),
         "system": compact({"manufacturer": (report.get("system") or {}).get("manufacturer"),
                            "model": (report.get("system") or {}).get("product"),
@@ -119,6 +132,8 @@ def sale(report, diagnostics=None):
         "hardware_check": diagnostic_summary(diagnostics),
         "privacy": "Public-facing profile; sensitive identifiers and product keys are excluded.",
     })
+    if benchmark_summary(benchmarks): model["performance_tests"] = benchmark_summary(benchmarks)
+    return model
 
 
 def text_value(value):
@@ -130,7 +145,7 @@ def text_value(value):
 def sale_text(model):
     names = {"system": "System", "processor": "Processor", "memory": "Memory", "graphics": "Graphics",
              "storage": "Storage", "network": "Network", "firmware": "Firmware", "windows": "Windows", "batteries": "Battery",
-             "hardware_check": "Hardware Check"}
+             "hardware_check": "Hardware Check", "performance_tests": "Performance Tests"}
     lines = ["ProbeOS System Report", "=====================", "", "Profile: Sale (privacy-safe)"]
     for key, title in names.items():
         value = model.get(key)
@@ -168,7 +183,7 @@ def sale_text(model):
     return "\n".join(lines) + "\n"
 
 
-def technical_text(report, profile, diagnostics=None):
+def technical_text(report, profile, diagnostics=None, benchmarks=None, stability=None):
     safe = redact(copy.deepcopy(report))
     sections = ("system", "cpu", "memory", "firmware", "motherboard", "graphics", "storage", "network", "power", "windows")
     if profile == "full":
@@ -178,12 +193,14 @@ def technical_text(report, profile, diagnostics=None):
     for section in sections:
         lines += ["", section.upper(), json.dumps(safe.get(section), indent=2, ensure_ascii=False)]
     lines += ["", "DIAGNOSTICS", json.dumps(redact(diagnostics), indent=2, ensure_ascii=False) if diagnostics else "Not run"]
+    if benchmarks: lines += ["", "BENCHMARKS", json.dumps(redact(benchmarks), indent=2, ensure_ascii=False)]
+    if stability: lines += ["", "STABILITY", json.dumps(redact(stability), indent=2, ensure_ascii=False)]
     return "\n".join(lines) + "\n"
 
 
 def sale_html(model):
     body = []
-    for section in ("system", "processor", "memory", "graphics", "storage", "network", "firmware", "windows", "batteries", "hardware_check"):
+    for section in ("system", "processor", "memory", "graphics", "storage", "network", "firmware", "windows", "batteries", "hardware_check", "performance_tests"):
         value = model.get(section)
         if not value:
             continue
@@ -215,17 +232,25 @@ def main():
         diagnostics = json.loads((out / "diagnostics.json").read_text(encoding="utf-8"))
     except (OSError, ValueError, json.JSONDecodeError):
         diagnostics = None
-    model = sale(report, diagnostics)
+    def optional(name):
+        try: return json.loads((out / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError): return None
+    benchmarks, stability = optional("benchmarks.json"), optional("stability.json")
+    model = sale(report, diagnostics, benchmarks)
     safe = redact(copy.deepcopy(report))
     safe["report_profile"] = "detailed"
     safe["diagnostics"] = redact(diagnostics) if diagnostics else {"status": "not_run"}
+    if benchmarks: safe["benchmarks"] = redact({"schema_version": benchmarks.get("schema_version"), "profile": benchmarks.get("profile"), "results": benchmarks.get("results")})
+    if stability: safe["stability"] = redact(stability)
     full = redact(copy.deepcopy(report))
     full["report_profile"] = "full"
     full["diagnostics"] = redact(diagnostics) if diagnostics else {"status": "not_run"}
+    if benchmarks: full["benchmarks"] = redact(benchmarks)
+    if stability: full["stability"] = redact(stability)
     files = {"sale.json": json.dumps(model, indent=2, ensure_ascii=False) + "\n", "sale.txt": sale_text(model),
              "sale.html": sale_html(model), "detailed.json": json.dumps(safe, indent=2, ensure_ascii=False) + "\n",
-             "detailed.txt": technical_text(report, "detailed", diagnostics), "full.json": json.dumps(full, indent=2, ensure_ascii=False) + "\n",
-             "full.txt": technical_text(report, "full", diagnostics)}
+             "detailed.txt": technical_text(report, "detailed", diagnostics, benchmarks, stability), "full.json": json.dumps(full, indent=2, ensure_ascii=False) + "\n",
+             "full.txt": technical_text(report, "full", diagnostics, benchmarks, stability)}
     for name, content in files.items():
         (out / (name + ".tmp")).write_text(content, encoding="utf-8")
         (out / (name + ".tmp")).replace(out / name)

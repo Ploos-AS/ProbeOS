@@ -40,6 +40,11 @@ retro-friendly local Web UI/API presents that same report without probing again.
 ProbeOS v0.2 development adds one central, offline diagnostics engine with a
 safe Quick Check, explicit bounded CPU/userspace-memory/storage-read tests, and
 read-only result presentation. See [Diagnostics Framework v1](docs/diagnostics.md).
+
+The development branch also includes the separate Benchmark Framework v1 and
+opt-in Stability/Burn-in workflow. They record native measurements and bounded
+stability evidence without performance scoring or destructive storage writes.
+See [benchmarks](docs/benchmarks.md) and [stability testing](docs/stability-testing.md).
 See
 [`docs/hardware-identification.md`](docs/hardware-identification.md) for data
 sources and limitations, [docs/reporting.md](docs/reporting.md) for report

@@ -16,8 +16,8 @@ browser rendering.
 The root is the privacy-safe sale summary and `/sale-report` is its printable,
 standalone HTML form. Report sections are available at /system, /cpu,
 /memory, /firmware, /motherboard, /pci, /usb, /graphics, /storage, /network,
-/sensors, /power, and /windows. /benchmarks explains why remote benchmark
-execution is deferred, /export shows a redacted JSON export, and /about
+/sensors, /power, and /windows. `/benchmarks` and `/stability` show the latest
+read-only local results, `/export` shows a redacted JSON export, and `/about`
 describes the service.
 
 ## API
@@ -31,6 +31,8 @@ All API responses are JSON:
 | /api/v1/profiles | Available profiles and default profile |
 | /api/v1/report/sale, /detailed, /full | Redacted profile JSON |
 | /api/v1/system ... /api/v1/windows | Corresponding top-level report value |
+| /api/v1/benchmarks[/summary|/cpu|/memory|/storage|/network] | Latest redacted benchmark results |
+| /api/v1/stability | Latest redacted stability result |
 
 Unknown API paths return a JSON 404. A missing or malformed report returns
 503 from report-backed endpoints; health remains lightweight and reports
@@ -61,5 +63,5 @@ is not an Internet security boundary: there is no TLS or authentication in v1.
 Stop the service or return it to local-only mode when it is not needed.
 
 The API is read-only. It has no shell, package manager, arbitrary command, or
-remote benchmark endpoint. Benchmark execution remains an explicit local TUI
-operation.
+remote benchmark/stress endpoint. Benchmark execution remains an explicit local
+TUI/GUI operation.

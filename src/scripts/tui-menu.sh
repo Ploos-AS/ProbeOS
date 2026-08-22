@@ -55,21 +55,35 @@ diagnostics_menu() {
     esac
 }
 benchmark_menu() {
-    choice=$($DIALOG --stdout --backtitle "$FOOTER" --title "Benchmarks (explicit opt-in)" --menu "No benchmark starts automatically" 16 70 5 1 "CPU benchmark (30 seconds)" 2 "Memory benchmark" 3 "Temporary-file read benchmark" 4 "Back") || return
+    choice=$($DIALOG --stdout --backtitle "$FOOTER" --title "Benchmarks" --menu "Explicit opt-in; measurements are not health ratings" 22 78 8 1 "Quick Benchmark" 2 "CPU Benchmark" 3 "Memory Benchmark" 4 "Storage Read Benchmark" 5 "Network Benchmark" 6 "Full Benchmark" 7 "View Results" 8 "Export Results") || return
     case "$choice" in
-        1) $DIALOG --yesno "Run a 30-second CPU stress benchmark?" 7 60 && stress-ng --cpu 0 --timeout 30s ;;
-        2) $DIALOG --yesno "Run the sysbench memory benchmark?" 7 60 && sysbench memory run ;;
-        3) run_disk_bench ;;
+        1) run_benchmark quick ;;
+        2) run_benchmark cpu ;;
+        3) run_benchmark memory ;;
+        4) device=$($DIALOG --stdout --inputbox "Device to READ (example /dev/nvme0n1):" 8 72) || return; run_benchmark storage --device "$device" ;;
+        5) peer=$($DIALOG --stdout --inputbox "Explicit LAN iperf3 server address:" 8 72) || return; run_benchmark network --peer "$peer" ;;
+        6) run_benchmark full ;;
+        7) if [ -s "$REPORT_DIR/benchmarks.txt" ]; then show_text "Benchmark Results" "$REPORT_DIR/benchmarks.txt"; else $DIALOG --msgbox "Benchmarks have not been run." 6 55; fi ;;
+        8) export_result benchmarks ;;
     esac
 }
-run_disk_bench() {
-    $DIALOG --yesno "This creates a 256 MiB regular file in /tmp, reads it with fio, then removes it. No physical device is selected. Continue?" 9 72 || return
-    file=$(mktemp /tmp/probeos-fio.XXXXXX) || return
-    trap 'rm -f "$file"' HUP INT TERM EXIT
-    dd if=/dev/zero of="$file" bs=1M count=256 status=none || { rm -f "$file"; trap - HUP INT TERM EXIT; return; }
-    fio --name=probeos-read --rw=read --readonly --filename="$file" --direct=1 --size=256M
-    rm -f "$file"
-    trap - HUP INT TERM EXIT
+run_benchmark() {
+    profile=$1; shift
+    $DIALOG --yesno "Run $profile benchmark now? Workloads are bounded and cancellable; storage is read-only." 8 72 || return
+    tmp=$(mktemp /tmp/probeos-benchmark.XXXXXX) || return
+    probe-benchmark run "$profile" "$@" --output-dir "$REPORT_DIR" >"$tmp" 2>&1 || true
+    show_text "Benchmark Results" "$tmp"; rm -f "$tmp"
+}
+export_result() {
+    kind=$1; [ -s "$REPORT_DIR/$kind.json" ] || { $DIALOG --msgbox "Results have not been run." 6 55; return; }
+    destination=$($DIALOG --stdout --inputbox "Directory for result copies:" 9 70 "/tmp") || return
+    stamp=$(date +%Y%m%d-%H%M%S); for extension in txt json html; do cp "$REPORT_DIR/$kind.$extension" "$destination/probeos-$kind-$stamp.$extension" || return; done
+}
+stability_menu() {
+    choice=$($DIALOG --stdout --title "Stability / Burn-in" --menu "CPU + bounded memory; no storage writes" 18 78 5 1 "15-minute Stability Test" 2 "60-minute Burn-in Test" 3 "Custom Duration" 4 "View Results" 5 "Export Results") || return
+    case "$choice" in 1) seconds=900;; 2) seconds=3600;; 3) minutes=$($DIALOG --stdout --inputbox "Duration in minutes (1-1440):" 8 60 "15") || return; seconds=$((minutes * 60));; 4) [ -s "$REPORT_DIR/stability.txt" ] && show_text "Stability Results" "$REPORT_DIR/stability.txt"; return;; 5) export_result stability; return;; esac
+    $DIALOG --yesno "ProbeOS Stability Test\n\nDuration: $((seconds / 60)) minutes\nCPU load: high\nMemory load: bounded\nStorage writes: none\n\nTemperatures will be monitored where supported. Start?" 14 72 || return
+    tmp=$(mktemp /tmp/probeos-stability.XXXXXX) || return; probe-benchmark stability --duration "$seconds" --output-dir "$REPORT_DIR" >"$tmp" 2>&1 || true; show_text "Stability Results" "$tmp"; rm -f "$tmp"
 }
 export_report() {
     ensure_report || return
@@ -156,14 +170,14 @@ windows_menu() {
 refresh_probe
 while :; do
     choice=$($DIALOG --stdout --clear --backtitle "$FOOTER" --title "ProbeOS" --menu "Hardware Inspection & Diagnostics" 26 84 19 \
-        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Reports / Export" 16 "Shell" 17 "Reboot" 18 "Power Off") || exit 0
+        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Stability / Burn-in" 16 "Reports / Export" 17 "Shell" 18 "Reboot" 19 "Power Off") || exit 0
     case "$choice" in
         1) ensure_report && show_text "System Summary" "$REPORT_TEXT" ;;
         2) show_json "CPU" '.cpu' ;; 3) show_json "Memory" '.memory' ;;
         4) show_json "Motherboard / Firmware" '{motherboard,firmware,system:{chassis:.system.chassis}}' ;;
         5) show_json "PCI Devices" '.pci' ;; 6) show_json "USB Devices" '.usb' ;; 7) show_json "Graphics" '.graphics' ;;
         8) show_json "Storage" '.storage' ;; 9) show_json "Network" '.network' ;; 10) network_menu ;; 11) show_json "Sensors / Power" '{sensors,power}' ;;
-        12) windows_menu ;; 13) diagnostics_menu ;; 14) benchmark_menu ;; 15) reports_menu ;;
-        16) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 17) reboot ;; 18) poweroff ;;
+        12) windows_menu ;; 13) diagnostics_menu ;; 14) benchmark_menu ;; 15) stability_menu ;; 16) reports_menu ;;
+        17) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 18) reboot ;; 19) poweroff ;;
     esac
 done

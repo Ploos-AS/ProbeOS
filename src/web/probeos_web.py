@@ -19,7 +19,8 @@ SECTIONS = (
     "graphics", "storage", "network", "sensors", "power", "windows",
 )
 PAGE_TITLES = {"/": "Summary", **{"/" + name: name.title() for name in SECTIONS},
-               "/diagnostics": "Diagnostics", "/sale-report": "Sale Report", "/benchmarks": "Benchmarks", "/export": "Export", "/about": "About"}
+               "/diagnostics": "Diagnostics", "/sale-report": "Sale Report", "/benchmarks": "Benchmarks",
+               "/stability": "Stability", "/export": "Export", "/about": "About"}
 API_SECTIONS = {name: name for name in SECTIONS}
 SENSITIVE = re.compile(r"(?:^|_)(?:serial|uuid|mac)(?:_|$)|^(?:serial|uuid|key|product_key|recoverable_product_key)$", re.I)
 
@@ -69,6 +70,17 @@ def load_diagnostics(report_dir):
             value = json.load(stream)
         if not isinstance(value, dict) or not isinstance(value.get("results"), list):
             raise ValueError("diagnostics document is malformed")
+        return redact(value), None
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return None, str(error)
+
+
+def load_result(report_dir, name):
+    """Load generated results only; Web/API never invokes a workload."""
+    try:
+        with open(os.path.join(report_dir, name + ".json"), "r", encoding="utf-8") as stream:
+            value = json.load(stream)
+        if not isinstance(value, dict): raise ValueError(name + " document is malformed")
         return redact(value), None
     except (OSError, ValueError, json.JSONDecodeError) as error:
         return None, str(error)
@@ -144,6 +156,20 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
 
     def api(self, path, query):
         suffix = path[len("/api/v1"):].rstrip("/") or "/health"
+        if suffix == "/stability":
+            value, error = load_result(self.report_dir, "stability")
+            self.send_json(value if value is not None else {"error": "stability_unavailable", "detail": error}, HTTPStatus.OK if value is not None else HTTPStatus.SERVICE_UNAVAILABLE)
+            return
+        if suffix == "/benchmarks" or suffix.startswith("/benchmarks/"):
+            value, error = load_result(self.report_dir, "benchmarks")
+            if value is None:
+                self.send_json({"error": "benchmarks_unavailable", "detail": error}, HTTPStatus.SERVICE_UNAVAILABLE); return
+            section = suffix[len("/benchmarks/"):] if suffix.startswith("/benchmarks/") else ""
+            if not section: self.send_json(value)
+            elif section == "summary": self.send_json({"profile": value.get("profile"), "duration_ms": value.get("duration_ms"), "results": [{"benchmark_id": x.get("benchmark_id"), "status": x.get("status"), "measurements": x.get("measurements")} for x in value.get("results", [])]})
+            elif section in ("cpu", "memory", "storage", "network"): self.send_json([x for x in value.get("results", []) if x.get("category") == section])
+            else: self.send_json({"error": "not_found", "path": path}, HTTPStatus.NOT_FOUND)
+            return
         if suffix == "/diagnostics" or suffix.startswith("/diagnostics/"):
             diagnostics, diagnostic_error = load_diagnostics(self.report_dir)
             if diagnostics is None:
@@ -200,8 +226,13 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
             body += "<p>ProbeOS is an offline-first hardware inspection environment.</p>"
             body += "<p>This interface reads the authoritative probe-identify report; it does not run a probe per request.</p>"
         elif path == "/benchmarks":
-            body = "<p>Benchmark execution is intentionally not available from the unauthenticated web/API layer.</p>"
-            body += "<p>Use the local TUI for explicit, interactive benchmark confirmation.</p>"
+            value, result_error = load_result(self.report_dir, "benchmarks")
+            body = "<p>Latest benchmark results (read-only). This interface cannot start workloads.</p>"
+            body += "<pre>" + html.escape(json.dumps(value, indent=2, ensure_ascii=False) if value else result_error or "Not run") + "</pre>"
+        elif path == "/stability":
+            value, result_error = load_result(self.report_dir, "stability")
+            body = "<p>Latest stability results (read-only). This interface cannot start workloads.</p>"
+            body += "<pre>" + html.escape(json.dumps(value, indent=2, ensure_ascii=False) if value else result_error or "Not run") + "</pre>"
         elif path == "/diagnostics":
             diagnostics, diagnostic_error = load_diagnostics(self.report_dir)
             if diagnostics is None:

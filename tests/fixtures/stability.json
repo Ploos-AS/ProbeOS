@@ -1,0 +1,1 @@
+{"schema_version":"1.0","document_type":"probeos_stability","duration_seconds":900,"status":"COMPLETED_NO_NEW_ERRORS","message":"No new monitored hardware-error indicators were detected during the test.","workload":{"storage_writes":false}}

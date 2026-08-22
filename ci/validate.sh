@@ -19,6 +19,7 @@ git diff --check HEAD
 git show --check --format= HEAD
 tests/run-tests.sh
 tests/diagnostics.sh
+tests/benchmarks.sh
 tests/web-api.sh
 tests/network.sh
 tests/package-resolution.sh

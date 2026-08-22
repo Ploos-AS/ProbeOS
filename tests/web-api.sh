@@ -10,6 +10,8 @@ trap 'if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait
 PROBE_FIXTURE_DIR="$ROOT/tests/fixtures/full" \
   "$ROOT/src/scripts/probe-identify" --output-dir "$WORK/report" --no-windows-mount >/dev/null
 "$ROOT/src/scripts/probe-diagnostics" quick --output-dir "$WORK/report" >/dev/null || true
+cp "$ROOT/tests/fixtures/benchmarks.json" "$WORK/report/benchmarks.json"
+cp "$ROOT/tests/fixtures/stability.json" "$WORK/report/stability.json"
 PROBEOS_REPORT_DIR="$WORK/report" PROBEOS_WEB_QUIET=1 \
   PROBEOS_RELEASE_FILE="$WORK/probeos-release" \
   python3 "$ROOT/src/web/probeos_web.py" --bind 127.0.0.1 --port "$PORT" >/dev/null 2>&1 &
@@ -39,6 +41,14 @@ for section in cpu memory storage network thermal battery; do
 done
 diagnostics_html=$(curl -fsS "http://127.0.0.1:$PORT/diagnostics")
 grep -Fq 'Latest result set (read-only)' <<<"$diagnostics_html"
+benchmarks=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/benchmarks")
+jq -e '.schema_version=="1.0" and .results[0].measurements[0].unit=="events/s" and .results[0].environment.serial_number=="[redacted]"' <<<"$benchmarks" >/dev/null
+curl -fsS "http://127.0.0.1:$PORT/api/v1/benchmarks/summary" | jq -e '.results[0].status=="COMPLETED"' >/dev/null
+for section in cpu memory storage network; do curl -fsS "http://127.0.0.1:$PORT/api/v1/benchmarks/$section" | jq -e 'type=="array"' >/dev/null; done
+stability=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/stability")
+jq -e '.schema_version=="1.0" and .status=="COMPLETED_NO_NEW_ERRORS"' <<<"$stability" >/dev/null
+grep -Fq 'This interface cannot start workloads' < <(curl -fsS "http://127.0.0.1:$PORT/benchmarks")
+grep -Fq 'This interface cannot start workloads' < <(curl -fsS "http://127.0.0.1:$PORT/stability")
 grep -Fq 'Fixture Workstation' <<<"$html"
 profiles=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/profiles")
 jq -e '.default=="sale" and .available==["sale","detailed","full"]' <<<"$profiles" >/dev/null
@@ -50,7 +60,7 @@ grep -Fq 'privacy-safe specification sheet' <<<"$sale_html"
 grep -Fq '"serial_number": "[redacted]"' <<<"$report"
 grep -Fq '"mac_address": "[redacted]"' <<<"$report"
 if grep -Fq 'XXXXX-XXXXX-XXXXX-XXXXX-AB234' <<<"$report"; then exit 1; fi
-for payload in "$report" "$html" "$sale" "$sale_html" "$diagnostics" "$diagnostics_html"; do
+for payload in "$report" "$html" "$sale" "$sale_html" "$diagnostics" "$diagnostics_html" "$benchmarks" "$stability"; do
     if grep -Eq 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE|W269N-WFGWX-YVC9B-4J6C9-T83GX' <<<"$payload"; then exit 1; fi
 done
 

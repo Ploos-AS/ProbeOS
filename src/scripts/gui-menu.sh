@@ -25,21 +25,29 @@ export_report() { profile=$1; destination=$(zenity --file-selection --directory 
 reveal_key() { zenity --question --text="Show Windows Product Key? This is sensitive; reuse and activation are not guaranteed." || return; tmp=$(mktemp /tmp/probeos-gui-key.XXXXXX) || return; probe-identify --output-dir "$REPORT_DIR" --reveal-key >"$tmp" 2>&1; show_file "Sensitive Windows Product Key" "$tmp"; rm -f "$tmp"; }
 export_license() { destination=$(zenity --file-selection --save --confirm-overwrite --filename="probeos-windows-license.txt" --title="Export sensitive Windows license information") || return; probe-identify --output-dir "$REPORT_DIR" --export-key "$destination" >/dev/null 2>&1 && zenity --info --text="Sensitive export written with mode 0600."; }
 benchmark_menu() {
-    benchmark=$(zenity --list --title="Benchmarks (explicit opt-in)" --column="Benchmark" "CPU (30 seconds)" "Memory" "Temporary-file read") || return
+    benchmark=$(zenity --list --title="Benchmarks (explicit opt-in)" --column="Benchmark" "Quick Benchmark" "CPU Benchmark" "Memory Benchmark" "Storage Read Benchmark" "Network Benchmark" "Full Benchmark" "View Results" "Export Results") || return
     case "$benchmark" in
-        "CPU (30 seconds)") zenity --question --text="Run CPU benchmark for 30 seconds?" && stress-ng --cpu 0 --timeout 30s ;;
-        "Memory") zenity --question --text="Run sysbench memory benchmark?" && sysbench memory run ;;
-        "Temporary-file read") zenity --question --text="Create a 256 MiB file in /tmp and read it with fio? No block device is selected." || return; file=$(mktemp /tmp/probeos-gui-fio.XXXXXX) || return; dd if=/dev/zero of="$file" bs=1M count=256 status=none && fio --name=probeos-read --rw=read --readonly --filename="$file" --direct=1 --size=256M; rm -f "$file" ;;
+        "Quick Benchmark") run_benchmark quick ;;
+        "CPU Benchmark") run_benchmark cpu ;;
+        "Memory Benchmark") run_benchmark memory ;;
+        "Storage Read Benchmark") device=$(zenity --entry --text="Device to READ (example /dev/nvme0n1):") || return; run_benchmark storage --device "$device" ;;
+        "Network Benchmark") peer=$(zenity --entry --text="Explicit LAN iperf3 server address:") || return; run_benchmark network --peer "$peer" ;;
+        "Full Benchmark") run_benchmark full ;;
+        "View Results") if [ -s "$REPORT_DIR/benchmarks.txt" ]; then show_file "Benchmark Results" "$REPORT_DIR/benchmarks.txt"; else zenity --info --text="Benchmarks have not been run."; fi ;;
+        "Export Results") export_results benchmarks ;;
     esac
 }
+run_benchmark() { profile=$1; shift; zenity --question --text="Run $profile benchmark? Workloads are bounded and cancellable; storage is read-only." || return; tmp=$(mktemp /tmp/probeos-gui-benchmark.XXXXXX) || return; probe-benchmark run "$profile" "$@" --output-dir "$REPORT_DIR" >"$tmp" 2>&1 || true; show_file "Benchmark Results" "$tmp"; rm -f "$tmp"; }
+export_results() { kind=$1; destination=$(zenity --file-selection --directory --title="Export $kind results") || return; stamp=$(date +%Y%m%d-%H%M%S); for extension in txt json html; do cp "$REPORT_DIR/$kind.$extension" "$destination/probeos-$kind-$stamp.$extension" || return; done; }
+stability_menu() { choice=$(zenity --list --title="Stability / Burn-in" --column="Test" "15-minute Stability Test" "60-minute Burn-in Test" "Custom Duration" "View Results" "Export Results") || return; case "$choice" in "15-minute Stability Test") seconds=900;; "60-minute Burn-in Test") seconds=3600;; "Custom Duration") minutes=$(zenity --entry --text="Duration in minutes (1-1440):" --entry-text="15") || return; seconds=$((minutes * 60));; "View Results") [ -s "$REPORT_DIR/stability.txt" ] && show_file "Stability Results" "$REPORT_DIR/stability.txt"; return;; "Export Results") export_results stability; return;; esac; zenity --question --text="ProbeOS Stability Test\n\nDuration: $((seconds / 60)) minutes\nCPU load: high\nMemory load: bounded\nStorage writes: none\n\nTemperatures will be monitored where supported." || return; tmp=$(mktemp /tmp/probeos-gui-stability.XXXXXX) || return; probe-benchmark stability --duration "$seconds" --output-dir "$REPORT_DIR" >"$tmp" 2>&1 || true; show_file "Stability Results" "$tmp"; rm -f "$tmp"; }
 refresh_probe
 while :; do
-    choice=$(zenity --list --title="ProbeOS" --text="Hardware Inspection & Diagnostics" --width=480 --height=600 --column="Action" "View Sale Report" "View Detailed Report" "View Full Report" "CPU" "Memory" "Motherboard / Firmware" "PCI Devices" "USB Devices" "Graphics" "Storage" "Network" "Sensors / Power" "Windows License Summary" "Show Windows Product Key" "Export Windows License Information" "Run Diagnostics" "Run Benchmarks" "Refresh Probe" "Export Sale Report" "Export Detailed Report" "Export Full Report" "Open Terminal" "Reboot" "Power Off") || exit 0
+    choice=$(zenity --list --title="ProbeOS" --text="Hardware Inspection & Diagnostics" --width=480 --height=600 --column="Action" "View Sale Report" "View Detailed Report" "View Full Report" "CPU" "Memory" "Motherboard / Firmware" "PCI Devices" "USB Devices" "Graphics" "Storage" "Network" "Sensors / Power" "Windows License Summary" "Show Windows Product Key" "Export Windows License Information" "Run Diagnostics" "Run Benchmarks" "Stability / Burn-in" "Refresh Probe" "Export Sale Report" "Export Detailed Report" "Export Full Report" "Open Terminal" "Reboot" "Power Off") || exit 0
     case "$choice" in
         "View Sale Report") show_file "$choice" "$REPORT_DIR/sale.txt" ;; "View Detailed Report") show_file "$choice" "$REPORT_DIR/detailed.txt" ;; "View Full Report") show_file "$choice" "$REPORT_DIR/full.txt" ;; "CPU") show_json "$choice" '.cpu' ;; "Memory") show_json "$choice" '.memory' ;;
         "Motherboard / Firmware") show_json "$choice" '{motherboard,firmware}' ;; "PCI Devices") show_json "$choice" '.pci' ;; "USB Devices") show_json "$choice" '.usb' ;;
         "Graphics") show_json "$choice" '.graphics' ;; "Storage") show_json "$choice" '.storage' ;; "Network") show_json "$choice" '.network' ;;
-        "Sensors / Power") show_json "$choice" '{sensors,power}' ;; "Windows License Summary") show_json "$choice" '.windows' ;; "Show Windows Product Key") reveal_key ;; "Export Windows License Information") export_license ;; "Run Diagnostics") diagnostics_menu ;; "Run Benchmarks") benchmark_menu ;; "Refresh Probe") refresh_probe ;;
+        "Sensors / Power") show_json "$choice" '{sensors,power}' ;; "Windows License Summary") show_json "$choice" '.windows' ;; "Show Windows Product Key") reveal_key ;; "Export Windows License Information") export_license ;; "Run Diagnostics") diagnostics_menu ;; "Run Benchmarks") benchmark_menu ;; "Stability / Burn-in") stability_menu ;; "Refresh Probe") refresh_probe ;;
         "Export Sale Report") export_report sale ;; "Export Detailed Report") export_report detailed ;; "Export Full Report") export_report full ;; "Open Terminal") rxvt & ;; "Reboot") reboot ;; "Power Off") poweroff ;;
     esac
 done
