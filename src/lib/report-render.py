@@ -53,21 +53,6 @@ def storage_type(disk):
     return transport.upper() or None
 
 
-def health(disk):
-    status = (disk.get("smart") or {}).get("status")
-    if status is True:
-        return "PASS"
-    if status is False:
-        return "FAIL"
-    nvme = disk.get("nvme") or {}
-    warning = nvme.get("CriticalWarning", nvme.get("critical_warning"))
-    if warning in (0, "0", "0x0", "0x00"):
-        return "PASS"
-    if warning is not None:
-        return "WARN"
-    return "UNKNOWN"
-
-
 def battery(item):
     design = item.get("design_capacity") or item.get("energy_full_design")
     full = item.get("full_charge_capacity") or item.get("energy_full")
@@ -81,7 +66,14 @@ def battery(item):
     return result
 
 
-def sale(report):
+def diagnostic_summary(diagnostics):
+    if not diagnostics:
+        return {"status": "Not run"}
+    return compact({"status": diagnostics.get("overall_status", "UNKNOWN"),
+                    "categories": diagnostics.get("category_summary") or {}})
+
+
+def sale(report, diagnostics=None):
     cpus = report.get("cpu") or []
     cpu = cpus[0] if cpus else {}
     dimms = (report.get("memory") or {}).get("dimms") or []
@@ -89,7 +81,7 @@ def sale(report):
     speeds = sorted({str(x["configured_speed"]) for x in dimms if x.get("configured_speed") not in (None, "Unknown")})
     graphics = [compact({"model": x.get("description"), "driver": x.get("driver")}) for x in report.get("graphics") or []]
     disks = [compact({"model": x.get("model"), "type": storage_type(x),
-                      "capacity": bytes_size(x.get("capacity_bytes")), "health": health(x)})
+                      "capacity": bytes_size(x.get("capacity_bytes"))})
              for x in report.get("storage") or []]
     pci_network = [x for x in report.get("pci") or [] if "network" in str(x.get("class", "")).lower() or
                    "ethernet" in str(x.get("class", "")).lower()]
@@ -124,6 +116,7 @@ def sale(report):
                             "firmware_oem_license": "Found" if firmware_license.get("oem_key_found") else "Not found",
                             "other_recoverable_key": "Found" if any(x.get("recoverable_key_status") == "found" for x in (report.get("windows") or {}).get("installations") or []) else "Not established"}),
         "batteries": [battery(x) for x in (report.get("power") or {}).get("supplies") or [] if x.get("type") == "Battery"],
+        "hardware_check": diagnostic_summary(diagnostics),
         "privacy": "Public-facing profile; sensitive identifiers and product keys are excluded.",
     })
 
@@ -136,7 +129,8 @@ def text_value(value):
 
 def sale_text(model):
     names = {"system": "System", "processor": "Processor", "memory": "Memory", "graphics": "Graphics",
-             "storage": "Storage", "network": "Network", "firmware": "Firmware", "windows": "Windows", "batteries": "Battery"}
+             "storage": "Storage", "network": "Network", "firmware": "Firmware", "windows": "Windows", "batteries": "Battery",
+             "hardware_check": "Hardware Check"}
     lines = ["ProbeOS System Report", "=====================", "", "Profile: Sale (privacy-safe)"]
     for key, title in names.items():
         value = model.get(key)
@@ -149,6 +143,13 @@ def sale_text(model):
                 lines.append("  %s %d" % (title.rstrip("s"), index))
             if isinstance(item, dict):
                 for name, field in item.items():
+                    if key == "hardware_check" and name == "status":
+                        lines.append("  Overall: " + text_value(field))
+                        continue
+                    if key == "hardware_check" and name == "categories" and isinstance(field, dict):
+                        for category, category_status in field.items():
+                            lines.append("  %s: %s" % (category.title(), text_value(category_status)))
+                        continue
                     if isinstance(field, list) and field and all(isinstance(entry, dict) for entry in field):
                         lines.append("  %s:" % name.replace("_", " ").title())
                         for number, entry in enumerate(field, 1):
@@ -167,7 +168,7 @@ def sale_text(model):
     return "\n".join(lines) + "\n"
 
 
-def technical_text(report, profile):
+def technical_text(report, profile, diagnostics=None):
     safe = redact(copy.deepcopy(report))
     sections = ("system", "cpu", "memory", "firmware", "motherboard", "graphics", "storage", "network", "power", "windows")
     if profile == "full":
@@ -176,12 +177,13 @@ def technical_text(report, profile):
              "Sensitive identifiers and Windows product keys are redacted."]
     for section in sections:
         lines += ["", section.upper(), json.dumps(safe.get(section), indent=2, ensure_ascii=False)]
+    lines += ["", "DIAGNOSTICS", json.dumps(redact(diagnostics), indent=2, ensure_ascii=False) if diagnostics else "Not run"]
     return "\n".join(lines) + "\n"
 
 
 def sale_html(model):
     body = []
-    for section in ("system", "processor", "memory", "graphics", "storage", "network", "firmware", "windows", "batteries"):
+    for section in ("system", "processor", "memory", "graphics", "storage", "network", "firmware", "windows", "batteries", "hardware_check"):
         value = model.get(section)
         if not value:
             continue
@@ -209,15 +211,21 @@ def main():
     args = parser.parse_args()
     report = json.loads(Path(args.report).read_text(encoding="utf-8"))
     out = Path(args.output_dir)
-    model = sale(report)
+    try:
+        diagnostics = json.loads((out / "diagnostics.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        diagnostics = None
+    model = sale(report, diagnostics)
     safe = redact(copy.deepcopy(report))
     safe["report_profile"] = "detailed"
+    safe["diagnostics"] = redact(diagnostics) if diagnostics else {"status": "not_run"}
     full = redact(copy.deepcopy(report))
     full["report_profile"] = "full"
+    full["diagnostics"] = redact(diagnostics) if diagnostics else {"status": "not_run"}
     files = {"sale.json": json.dumps(model, indent=2, ensure_ascii=False) + "\n", "sale.txt": sale_text(model),
              "sale.html": sale_html(model), "detailed.json": json.dumps(safe, indent=2, ensure_ascii=False) + "\n",
-             "detailed.txt": technical_text(report, "detailed"), "full.json": json.dumps(full, indent=2, ensure_ascii=False) + "\n",
-             "full.txt": technical_text(report, "full")}
+             "detailed.txt": technical_text(report, "detailed", diagnostics), "full.json": json.dumps(full, indent=2, ensure_ascii=False) + "\n",
+             "full.txt": technical_text(report, "full", diagnostics)}
     for name, content in files.items():
         (out / (name + ".tmp")).write_text(content, encoding="utf-8")
         (out / (name + ".tmp")).replace(out / name)

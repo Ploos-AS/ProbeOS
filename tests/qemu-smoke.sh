@@ -28,7 +28,7 @@ case "$MODE" in
         ;;
     *) echo "unknown firmware mode: $MODE" >&2; exit 2 ;;
 esac
-marker="PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid firmware=$expected_firmware"
+marker="PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid diagnostics_json=valid"
 cleanup() {
     [[ -z $qemu_pid ]] || kill "$qemu_pid" 2>/dev/null || true
     [[ -z $vars ]] || rm -f "$vars"
@@ -50,6 +50,10 @@ done
     tail -n 120 "$LOG" >&2
     exit 1
 }
+grep -Eq "quick_seconds=[0-9]+ firmware=$expected_firmware" "$LOG" || {
+    echo "Quick Check runtime or firmware marker missing; see $LOG" >&2
+    exit 1
+}
 case $(basename "$ISO") in
     *-syslinux.iso)
         grep -Fq 'ProbeOS - Legacy BIOS' "$LOG" || {
@@ -58,4 +62,4 @@ case $(basename "$ISO") in
         }
         ;;
 esac
-echo "ok - $MODE reached ProbeOS userspace and generated valid hardware reports"
+echo "ok - $MODE reached ProbeOS userspace and generated valid hardware and Quick Check reports"

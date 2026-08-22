@@ -5,6 +5,7 @@ DIALOG=${DIALOG:-dialog}
 REPORT_DIR=${PROBE_OUTPUT_DIR:-/run/probeos}
 REPORT_JSON="$REPORT_DIR/report.json"
 REPORT_TEXT="$REPORT_DIR/report.txt"
+DIAGNOSTICS_TEXT="$REPORT_DIR/diagnostics.txt"
 FOOTER="ProbeOS — https://probeos.eu — © 2026 Ploos AS"
 export NCURSES_NO_UTF8_ACS=1
 
@@ -23,6 +24,35 @@ show_json() {
     jq -r "$2" "$REPORT_JSON" >"$tmp" 2>&1 || echo 'Information unavailable.' >"$tmp"
     show_text "$1" "$tmp"
     rm -f "$tmp"
+}
+run_diagnostic() {
+    tmp=$(mktemp /tmp/probeos-diagnostic.XXXXXX) || return
+    if probe-diagnostics "$@" --output-dir "$REPORT_DIR" >"$tmp" 2>&1; then :; fi
+    show_text "Diagnostic Results" "$tmp"
+    rm -f "$tmp"
+}
+export_diagnostics() {
+    [ -s "$REPORT_DIR/diagnostics.json" ] || { $DIALOG --msgbox "Diagnostics have not been run." 6 55; return; }
+    destination=$($DIALOG --stdout --inputbox "Directory for diagnostic result copies:" 9 70 "/tmp") || return
+    [ -d "$destination" ] || { $DIALOG --msgbox "Directory does not exist." 6 50; return; }
+    stamp=$(date +%Y%m%d-%H%M%S)
+    for extension in txt json html; do cp "$REPORT_DIR/diagnostics.$extension" "$destination/probeos-diagnostics-$stamp.$extension" || return; done
+    $DIALOG --msgbox "Diagnostic results exported to:\n$destination" 7 70
+}
+diagnostics_menu() {
+    choice=$($DIALOG --stdout --backtitle "$FOOTER" --title "Diagnostics" --menu "Quick Check is passive, offline, and non-destructive" 23 82 9 \
+        1 "Quick Check" 2 "CPU Diagnostic" 3 "Userspace Memory Test" 4 "Storage Health" 5 "Storage Read Test" 6 "Network Diagnostic" 7 "View Results" 8 "Export Results" 9 "Memtest86+ information") || return
+    case "$choice" in
+        1) run_diagnostic quick ;;
+        2) $DIALOG --yesno "Runs a CPU workload for 60 seconds and stops it on cancellation." 7 72 && run_diagnostic cpu --duration 60 ;;
+        3) $DIALOG --yesno "Tests a conservative amount of currently available RAM. ProbeOS keeps a memory reserve. This is not boot-time Memtest86+." 9 76 && run_diagnostic memory ;;
+        4) run_diagnostic storage-health ;;
+        5) device=$($DIALOG --stdout --inputbox "Device to read (example /dev/nvme0n1):" 8 70) || return; $DIALOG --yesno "Reads 4 GiB from $device. No data will be written." 7 72 && run_diagnostic storage-read --device "$device" --read-mib 4096 ;;
+        6) run_diagnostic network ;;
+        7) if [ -s "$DIAGNOSTICS_TEXT" ]; then show_text "Diagnostic Results" "$DIAGNOSTICS_TEXT"; else $DIALOG --msgbox "Diagnostics have not been run." 6 55; fi ;;
+        8) export_diagnostics ;;
+        9) $DIALOG --msgbox "For deeper full-memory testing, reboot and choose ProbeOS - Memory Test (Memtest86+) from the boot menu. The userspace memory test is not equivalent to Memtest86+." 9 76 ;;
+    esac
 }
 benchmark_menu() {
     choice=$($DIALOG --stdout --backtitle "$FOOTER" --title "Benchmarks (explicit opt-in)" --menu "No benchmark starts automatically" 16 70 5 1 "CPU benchmark (30 seconds)" 2 "Memory benchmark" 3 "Temporary-file read benchmark" 4 "Back") || return
@@ -126,14 +156,14 @@ windows_menu() {
 refresh_probe
 while :; do
     choice=$($DIALOG --stdout --clear --backtitle "$FOOTER" --title "ProbeOS" --menu "Hardware Inspection & Diagnostics" 26 84 19 \
-        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Benchmarks" 14 "Reports / Export" 15 "Shell" 16 "Reboot" 17 "Power Off") || exit 0
+        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Reports / Export" 16 "Shell" 17 "Reboot" 18 "Power Off") || exit 0
     case "$choice" in
         1) ensure_report && show_text "System Summary" "$REPORT_TEXT" ;;
         2) show_json "CPU" '.cpu' ;; 3) show_json "Memory" '.memory' ;;
         4) show_json "Motherboard / Firmware" '{motherboard,firmware,system:{chassis:.system.chassis}}' ;;
         5) show_json "PCI Devices" '.pci' ;; 6) show_json "USB Devices" '.usb' ;; 7) show_json "Graphics" '.graphics' ;;
         8) show_json "Storage" '.storage' ;; 9) show_json "Network" '.network' ;; 10) network_menu ;; 11) show_json "Sensors / Power" '{sensors,power}' ;;
-        12) windows_menu ;; 13) benchmark_menu ;; 14) reports_menu ;;
-        15) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 16) reboot ;; 17) poweroff ;;
+        12) windows_menu ;; 13) diagnostics_menu ;; 14) benchmark_menu ;; 15) reports_menu ;;
+        16) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 17) reboot ;; 18) poweroff ;;
     esac
 done

@@ -19,7 +19,7 @@ SECTIONS = (
     "graphics", "storage", "network", "sensors", "power", "windows",
 )
 PAGE_TITLES = {"/": "Summary", **{"/" + name: name.title() for name in SECTIONS},
-               "/sale-report": "Sale Report", "/benchmarks": "Benchmarks", "/export": "Export", "/about": "About"}
+               "/diagnostics": "Diagnostics", "/sale-report": "Sale Report", "/benchmarks": "Benchmarks", "/export": "Export", "/about": "About"}
 API_SECTIONS = {name: name for name in SECTIONS}
 SENSITIVE = re.compile(r"(?:^|_)(?:serial|uuid|mac)(?:_|$)|^(?:serial|uuid|key|product_key|recoverable_product_key)$", re.I)
 
@@ -58,6 +58,18 @@ def load_profile(report_dir, profile, extension="json"):
     try:
         with open(path, "r", encoding="utf-8") as stream:
             return json.load(stream) if extension == "json" else stream.read(), None
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return None, str(error)
+
+
+def load_diagnostics(report_dir):
+    path = os.path.join(report_dir, "diagnostics.json")
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            value = json.load(stream)
+        if not isinstance(value, dict) or not isinstance(value.get("results"), list):
+            raise ValueError("diagnostics document is malformed")
+        return redact(value), None
     except (OSError, ValueError, json.JSONDecodeError) as error:
         return None, str(error)
 
@@ -120,9 +132,10 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         if path == "/api/v1/health":
             report, _ = load_report(self.report_dir)
+            diagnostics, _ = load_diagnostics(self.report_dir)
             generated = report.get("probeos", {}).get("generated_at") if report else None
             self.send_json({"service": "running", "api_version": "1", **load_identity(), "report_available": report is not None,
-                            "report_generated_at": generated})
+                            "report_generated_at": generated, "diagnostics_available": diagnostics is not None})
             return
         if path.startswith("/api/v1"):
             self.api(path, query)
@@ -131,6 +144,22 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
 
     def api(self, path, query):
         suffix = path[len("/api/v1"):].rstrip("/") or "/health"
+        if suffix == "/diagnostics" or suffix.startswith("/diagnostics/"):
+            diagnostics, diagnostic_error = load_diagnostics(self.report_dir)
+            if diagnostics is None:
+                self.send_json({"error": "diagnostics_unavailable", "detail": diagnostic_error}, HTTPStatus.SERVICE_UNAVAILABLE)
+                return
+            section = suffix[len("/diagnostics/"):] if suffix.startswith("/diagnostics/") else ""
+            if not section:
+                self.send_json(diagnostics)
+            elif section == "summary":
+                self.send_json({"overall_status": diagnostics.get("overall_status"),
+                                "category_summary": diagnostics.get("category_summary"), "run": diagnostics.get("run")})
+            elif section in ("cpu", "memory", "storage", "network", "thermal", "battery"):
+                self.send_json([item for item in diagnostics["results"] if item.get("category") == section])
+            else:
+                self.send_json({"error": "not_found", "path": path}, HTTPStatus.NOT_FOUND)
+            return
         report, error = self.report_view(query)
         if report is None:
             self.send_json({"error": "report_unavailable", "detail": error}, HTTPStatus.SERVICE_UNAVAILABLE)
@@ -173,6 +202,13 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
         elif path == "/benchmarks":
             body = "<p>Benchmark execution is intentionally not available from the unauthenticated web/API layer.</p>"
             body += "<p>Use the local TUI for explicit, interactive benchmark confirmation.</p>"
+        elif path == "/diagnostics":
+            diagnostics, diagnostic_error = load_diagnostics(self.report_dir)
+            if diagnostics is None:
+                body = "<p>ProbeOS Quick Check has not been run, or results are unavailable.</p><p>Run diagnostics locally; this read-only Web UI never starts tests.</p>"
+            else:
+                body = "<p>Latest result set (read-only):</p><pre>" + html.escape(json.dumps(diagnostics, indent=2, ensure_ascii=False)) + "</pre>"
+                body += "<p>API: <a href='/api/v1/diagnostics'>/api/v1/diagnostics</a> · <a href='/api/v1/diagnostics/summary'>summary</a></p>"
         elif path == "/export":
             if report is None:
                 body = "<p>Report unavailable: " + html.escape(error or "unknown error") + "</p>"

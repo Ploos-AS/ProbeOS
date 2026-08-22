@@ -121,12 +121,23 @@ if [ ! -s /run/probeos/report.txt ]; then
     echo 'PROBEOS_BOOT_FAIL report_txt=missing' >/dev/console
     exit 1
 fi
+quick_started=$(date +%s)
+if ! /usr/local/bin/probe-diagnostics quick --output-dir /run/probeos >/run/probeos/probe-diagnostics.log 2>&1; then
+    # A hardware FAIL is a valid completed diagnostic result; only malformed or
+    # absent output prevents qualification.
+    :
+fi
+if ! jq -e '.schema_version=="1.0" and .run.mode=="quick" and (.results|type)=="array"' /run/probeos/diagnostics.json >/dev/null 2>&1; then
+    echo 'PROBEOS_BOOT_FAIL diagnostics_json=invalid' >/dev/console
+    exit 1
+fi
+quick_seconds=$(($(date +%s) - quick_started))
 boot_mode=$(jq -er '.firmware.boot_mode | select(. == "BIOS" or . == "UEFI")' \
     /run/probeos/report.json) || {
     echo 'PROBEOS_BOOT_FAIL firmware=invalid' >/dev/console
     exit 1
 }
-echo "PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid firmware=$boot_mode" >/dev/console
+echo "PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid diagnostics_json=valid quick_seconds=$quick_seconds firmware=$boot_mode" >/dev/console
 EOF
 chmod +x "$WORKDIR/etc/local.d/probe-identify.start"
 
@@ -161,9 +172,11 @@ cp "$REPO_ROOT/src/scripts/probeos-network" "$WORKDIR/usr/local/bin/probeos-netw
 cp "$REPO_ROOT/src/scripts/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-udhcpc"
 cp "$REPO_ROOT/src/scripts/probeos-web" "$WORKDIR/usr/local/bin/probeos-web"
 cp "$REPO_ROOT/src/scripts/probe-identify" "$WORKDIR/usr/local/bin/probe-identify"
+cp "$REPO_ROOT/src/scripts/probe-diagnostics" "$WORKDIR/usr/local/bin/probe-diagnostics"
 mkdir -p "$WORKDIR/usr/local/lib/probeos"
 cp "$REPO_ROOT/src/lib/probe-identify-lib.sh" "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
 cp "$REPO_ROOT/src/lib/report-render.py" "$WORKDIR/usr/local/lib/probeos/report-render.py"
+cp "$REPO_ROOT/src/lib/probe_diagnostics.py" "$WORKDIR/usr/local/lib/probeos/probe_diagnostics.py"
 cp "$REPO_ROOT/src/lib/windows-license.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py"
 cp "$REPO_ROOT/src/web/probeos_web.py" "$WORKDIR/usr/local/lib/probeos/probeos_web.py"
 mkdir -p "$WORKDIR/etc/init.d" "$WORKDIR/etc/conf.d"
@@ -180,10 +193,13 @@ sed -i 's|$SELF_DIR/../lib/probe-identify-lib.sh|/usr/local/lib/probeos/probe-id
 sed -i 's|$SELF_DIR/../lib/report-render.py|/usr/local/lib/probeos/report-render.py|' "$WORKDIR/usr/local/bin/probe-identify"
 # shellcheck disable=SC2016
 sed -i 's|$SELF_DIR/../lib/windows-license.py|/usr/local/lib/probeos/windows-license.py|' "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/probe_diagnostics.py|/usr/local/lib/probeos/probe_diagnostics.py|' "$WORKDIR/usr/local/bin/probe-diagnostics"
 chmod +x "$WORKDIR/usr/local/bin/"*.sh
 chmod +x "$WORKDIR/usr/local/bin/probeos-network" "$WORKDIR/usr/local/bin/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-web" "$WORKDIR/etc/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-web"
 chmod +x "$WORKDIR/usr/local/bin/probe-identify"
-chmod +x "$WORKDIR/usr/local/lib/probeos/report-render.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py"
+chmod +x "$WORKDIR/usr/local/bin/probe-diagnostics"
+chmod +x "$WORKDIR/usr/local/lib/probeos/report-render.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py" "$WORKDIR/usr/local/lib/probeos/probe_diagnostics.py"
 
 # =========================================
 # Open-source Memtest86+ payload

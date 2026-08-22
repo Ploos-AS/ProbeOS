@@ -36,6 +36,10 @@ and stable-schema JSON under `/run/probeos`. Development after v0.1.0 adds
 conservative offline Windows key recovery with explicit local reveal/export;
 normal reports, Web UI, and API never contain complete product keys. The optional
 retro-friendly local Web UI/API presents that same report without probing again.
+
+ProbeOS v0.2 development adds one central, offline diagnostics engine with a
+safe Quick Check, explicit bounded CPU/userspace-memory/storage-read tests, and
+read-only result presentation. See [Diagnostics Framework v1](docs/diagnostics.md).
 See
 [`docs/hardware-identification.md`](docs/hardware-identification.md) for data
 sources and limitations, [docs/reporting.md](docs/reporting.md) for report

@@ -101,9 +101,11 @@ mkdir -p "$ROOTFS/usr/local/bin"
 cp "$ROOTDIR/src/scripts/tui-menu.sh" "$ROOTFS/usr/local/bin/"
 cp "$ROOTDIR/src/scripts/gui-menu.sh" "$ROOTFS/usr/local/bin/"
 cp "$ROOTDIR/src/scripts/probe-identify" "$ROOTFS/usr/local/bin/"
+cp "$ROOTDIR/src/scripts/probe-diagnostics" "$ROOTFS/usr/local/bin/"
 mkdir -p "$ROOTFS/usr/local/lib/probeos"
 cp "$ROOTDIR/src/lib/probe-identify-lib.sh" "$ROOTFS/usr/local/lib/probeos/"
 cp "$ROOTDIR/src/lib/report-render.py" "$ROOTFS/usr/local/lib/probeos/"
+cp "$ROOTDIR/src/lib/probe_diagnostics.py" "$ROOTFS/usr/local/lib/probeos/"
 cp "$ROOTDIR/src/lib/windows-license.py" "$ROOTFS/usr/local/lib/probeos/"
 # Replace the literal runtime fallback.
 # shellcheck disable=SC2016
@@ -112,9 +114,12 @@ sed -i 's|$SELF_DIR/../lib/probe-identify-lib.sh|/usr/local/lib/probeos/probe-id
 sed -i 's|$SELF_DIR/../lib/report-render.py|/usr/local/lib/probeos/report-render.py|' "$ROOTFS/usr/local/bin/probe-identify"
 # shellcheck disable=SC2016
 sed -i 's|$SELF_DIR/../lib/windows-license.py|/usr/local/lib/probeos/windows-license.py|' "$ROOTFS/usr/local/lib/probeos/probe-identify-lib.sh"
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/probe_diagnostics.py|/usr/local/lib/probeos/probe_diagnostics.py|' "$ROOTFS/usr/local/bin/probe-diagnostics"
 chmod +x "$ROOTFS/usr/local/bin/"*.sh
 chmod +x "$ROOTFS/usr/local/bin/probe-identify"
-chmod +x "$ROOTFS/usr/local/lib/probeos/report-render.py" "$ROOTFS/usr/local/lib/probeos/windows-license.py"
+chmod +x "$ROOTFS/usr/local/bin/probe-diagnostics"
+chmod +x "$ROOTFS/usr/local/lib/probeos/report-render.py" "$ROOTFS/usr/local/lib/probeos/windows-license.py" "$ROOTFS/usr/local/lib/probeos/probe_diagnostics.py"
 
 # =========================
 # 8. Initramfs

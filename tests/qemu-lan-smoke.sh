@@ -22,7 +22,7 @@ qemu_pid=$!
 health=
 for _ in $(seq 1 "$TIMEOUT"); do
     health=$(curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/v1/health" 2>/dev/null || true)
-    if [ -n "$health" ] && jq -e '.service=="running" and .report_available==true' <<<"$health" >/dev/null 2>&1; then
+    if [ -n "$health" ] && jq -e '.service=="running" and .report_available==true and .diagnostics_available==true' <<<"$health" >/dev/null 2>&1; then
         break
     fi
     sleep 1
@@ -33,7 +33,16 @@ done
     tail -n 120 "$LOG" >&2
     exit 1
 }
-jq -e '.service=="running" and .api_version=="1" and .report_available==true' <<<"$health" >/dev/null
+# diagnostics.json becomes visible atomically just before report profiles are
+# refreshed and the boot marker is emitted. Wait for that marker so API/profile
+# assertions cannot race the final rendering step.
+boot_ready=0
+for _ in $(seq 1 30); do
+    if grep -Fq 'PROBEOS_BOOT_OK' "$LOG"; then boot_ready=1; break; fi
+    sleep 1
+done
+[ "$boot_ready" -eq 1 ] || { echo "ProbeOS boot completion marker missing" >&2; exit 1; }
+jq -e '.service=="running" and .api_version=="1" and .report_available==true and .diagnostics_available==true' <<<"$health" >/dev/null
 report=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report")
 jq -e '(.schema_version=="1.1") and (.default_human_profile=="sale") and ([.network[]? | select(.interface!="lo")] | length >= 1)' <<<"$report" >/dev/null
 jq -e '[.. | objects | .serial_number? // empty] | all(. == "[redacted]")' <<<"$report" >/dev/null
@@ -42,6 +51,13 @@ if grep -Eq '[A-Z0-9]{5}(-[A-Z0-9]{5}){4}' <<<"$report"; then
     echo 'product-key-shaped value exposed by LAN API' >&2
     exit 1
 fi
-curl -fsS "http://127.0.0.1:$PORT/" | grep -Fq 'ProbeOS'
-grep -Fq 'PROBEOS_BOOT_OK' "$LOG"
+diagnostics=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/diagnostics")
+jq -e '.schema_version=="1.0" and .run.mode=="quick" and (.results|length)>0' <<<"$diagnostics" >/dev/null
+home=$(curl -fsS "http://127.0.0.1:$PORT/")
+grep -Fq 'ProbeOS' <<<"$home"
+grep -Fq 'Hardware Check' <<<"$home"
+if grep -Fq 'Status: Not run' <<<"$home"; then
+    echo 'sale profile was not refreshed with completed Quick Check results' >&2
+    exit 1
+fi
 echo "ok - QEMU DHCP/user-network and forwarded ProbeOS Web/API passed"

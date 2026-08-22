@@ -29,6 +29,7 @@ ntfs-3g
 hivex
 mokutil
 stress-ng
+memtester
 sysbench
 dialog
 ncurses
