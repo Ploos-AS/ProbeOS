@@ -43,6 +43,7 @@ grep -Eq '^etc/probeos-release$' "$overlay_listing" || {
     echo 'runtime ProbeOS identity missing from overlay' >&2
     exit 1
 }
+grep -Eq '^usr/local/bin/probe-qualify$' "$overlay_listing" || { echo 'qualification workflow missing from overlay' >&2; exit 1; }
 grep -Fq "'$config_path'" <<<"$listing" || { echo "boot config missing: $config_path" >&2; exit 1; }
 grep -Fq "/apks/$arch/APKINDEX.tar.gz" <<<"$listing" || { echo 'offline APK index missing' >&2; exit 1; }
 grep -Fq 'ProbeOS - Memory Test (Memtest86+)' "$boot_cfg" || {

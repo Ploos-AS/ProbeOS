@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "SPDX-License-Identifier: GPL-3.0-or-later",
+  "$id": "https://probeos.eu/schema/qualification-1.0.json",
+  "title": "ProbeOS qualification evidence record",
+  "type": "object",
+  "required": ["schema_version", "procedure_version", "qualification_id", "environment_type", "provenance", "probeos", "artifact", "platform", "machine", "results", "overall_status", "operator_confirmation"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "procedure_version": {"const": "physical-qualification-v1"},
+    "qualification_id": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f-]{27}$"},
+    "environment_type": {"enum": ["physical", "emulator", "synthetic"]},
+    "provenance": {"enum": ["probeos_runtime", "operator_observed", "qemu_ci", "imported_physical_bundle", "synthetic_fixture", "manual_early_boot"]},
+    "timestamp": {"type": ["string", "null"]},
+    "timestamp_reliability": {"enum": ["trusted", "uncertain", "unavailable"]},
+    "probeos": {"type": "object", "required": ["version", "commit", "architecture"]},
+    "artifact": {"type": "object", "required": ["identity", "iso_sha256", "identity_strength"]},
+    "platform": {"type": "object", "required": ["architecture", "bootloader", "firmware_mode", "boot_medium"]},
+    "machine": {"type": "object", "required": ["fingerprint", "manufacturer", "model", "cpu", "memory"]},
+    "results": {"type": "object", "additionalProperties": {"type": "object", "required": ["status", "evidence_source"], "properties": {"status": {"enum": ["PASS", "PARTIAL", "FAIL", "NOT_TESTED", "UNSUPPORTED", "ERROR"]}, "evidence_source": {"enum": ["probeos_runtime", "operator_observed", "qemu_ci", "imported_physical_bundle", "synthetic_fixture", "manual_early_boot"]}}},
+    "overall_status": {"enum": ["PASS", "PARTIAL", "FAIL", "NOT_TESTED", "UNSUPPORTED", "ERROR"]},
+    "operator_confirmation": {"type": "object", "required": ["confirmed", "confirmed_at"]},
+    "notes": {"type": "array", "items": {"type": "string", "maxLength": 1000}},
+    "failures": {"type": "array"},
+    "skipped_tests": {"type": "array"},
+    "external_evidence_references": {"type": "array", "items": {"type": "string", "maxLength": 1000}}
+  },
+  "additionalProperties": true
+}

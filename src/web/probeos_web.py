@@ -20,7 +20,7 @@ SECTIONS = (
 )
 PAGE_TITLES = {"/": "Summary", **{"/" + name: name.title() for name in SECTIONS},
                "/diagnostics": "Diagnostics", "/sale-report": "Sale Report", "/benchmarks": "Benchmarks",
-               "/stability": "Stability", "/export": "Export", "/about": "About"}
+               "/stability": "Stability", "/qualification": "Qualification", "/export": "Export", "/about": "About"}
 API_SECTIONS = {name: name for name in SECTIONS}
 SENSITIVE = re.compile(r"(?:^|_)(?:serial|uuid|mac)(?:_|$)|^(?:serial|uuid|key|product_key|recoverable_product_key)$", re.I)
 
@@ -156,6 +156,14 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
 
     def api(self, path, query):
         suffix = path[len("/api/v1"):].rstrip("/") or "/health"
+        if suffix == "/qualification" or suffix == "/qualification/summary":
+            value, error = load_result(self.report_dir, "qualification")
+            if value is None:
+                self.send_json({"error": "qualification_unavailable", "detail": error}, HTTPStatus.SERVICE_UNAVAILABLE); return
+            if suffix.endswith("/summary"):
+                self.send_json({"qualification_id": value.get("qualification_id"), "environment_type": value.get("environment_type"), "procedure_version": value.get("procedure_version"), "overall_status": value.get("overall_status"), "qualification_level": value.get("qualification_level"), "platform": value.get("platform")})
+            else: self.send_json(value)
+            return
         if suffix == "/stability":
             value, error = load_result(self.report_dir, "stability")
             self.send_json(value if value is not None else {"error": "stability_unavailable", "detail": error}, HTTPStatus.OK if value is not None else HTTPStatus.SERVICE_UNAVAILABLE)
@@ -233,6 +241,11 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
             value, result_error = load_result(self.report_dir, "stability")
             body = "<p>Latest stability results (read-only). This interface cannot start workloads.</p>"
             body += "<pre>" + html.escape(json.dumps(value, indent=2, ensure_ascii=False) if value else result_error or "Not run") + "</pre>"
+        elif path == "/qualification":
+            value, result_error = load_result(self.report_dir, "qualification")
+            body = "<p>Current privacy-safe qualification evidence (read-only). This interface cannot start tests, change observations, submit evidence, or export bundles.</p>"
+            body += "<pre>" + html.escape(json.dumps(value, indent=2, ensure_ascii=False) if value else result_error or "Not run") + "</pre>"
+            body += "<p>API: <a href='/api/v1/qualification'>record</a> · <a href='/api/v1/qualification/summary'>summary</a></p>"
         elif path == "/diagnostics":
             diagnostics, diagnostic_error = load_diagnostics(self.report_dir)
             if diagnostics is None:

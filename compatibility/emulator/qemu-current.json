@@ -1,0 +1,16 @@
+{
+  "license": "SPDX-License-Identifier: GPL-3.0-or-later",
+  "schema_version": "1.0",
+  "environment_type": "emulator",
+  "provenance": "qemu_ci",
+  "procedure_version": "qemu-qualification-v1",
+  "probeos_version": "development",
+  "paths": [
+    {"architecture":"x86_64","bootloader":"grub","firmware_mode":"bios","linux":"PASS","memtest_startup":"PASS"},
+    {"architecture":"x86_64","bootloader":"grub","firmware_mode":"uefi","linux":"PASS","memtest_startup":"PASS"},
+    {"architecture":"x86_64","bootloader":"syslinux","firmware_mode":"bios","linux":"PASS","memtest_startup":"PASS"},
+    {"architecture":"x86","bootloader":"grub","firmware_mode":"bios","linux":"PASS","memtest_startup":"PASS"},
+    {"architecture":"x86","bootloader":"syslinux","firmware_mode":"bios","linux":"PASS","memtest_startup":"PASS"}
+  ],
+  "note": "Generated summaries must never count these paths as physical machines or runs. Runtime results are established by CI, not this descriptive record."
+}

@@ -22,5 +22,6 @@ fi
 grep -Eq '^PROBEOS_BUILD_CHANNEL=(development|release|release-candidate)$' \
     "$WORK/etc/probeos-release"
 grep -Eq '^PROBEOS_GIT_COMMIT=([0-9a-f]{40}|unknown)$' "$WORK/etc/probeos-release"
+grep -Eq '^PROBEOS_BOOTLOADER=(grub|syslinux)$' "$WORK/etc/probeos-release"
 grep -Eq '^PROBEOS_WEB_BIND="127\.0\.0\.1"$' "$WORK/etc/conf.d/probeos-web"
 echo "ok - ISO content audit passed for $(basename "$ISO")"

@@ -15,11 +15,13 @@ shell_files=(
 )
 bash -n "${shell_files[@]}"
 shellcheck "${shell_files[@]}"
+python3 -m py_compile src/lib/*.py src/web/*.py tools/import-qualification tools/generate-compatibility tests/*.py
 git diff --check HEAD
 git show --check --format= HEAD
 tests/run-tests.sh
 tests/diagnostics.sh
 tests/benchmarks.sh
+tests/qualification.sh
 tests/web-api.sh
 tests/network.sh
 tests/package-resolution.sh

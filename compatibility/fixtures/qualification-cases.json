@@ -1,0 +1,16 @@
+{
+  "license": "SPDX-License-Identifier: GPL-3.0-or-later",
+  "fixture_type": "synthetic",
+  "warning": "These scenarios are synthetic test inputs and are never physical evidence.",
+  "cases": [
+    {"id":"A","description":"modern x86_64 UEFI laptop; all core functionality works","architecture":"x86_64","bootloader":"grub","firmware_mode":"uefi","core":"PASS","networking":"PASS"},
+    {"id":"B","description":"modern x86_64 BIOS/CSM desktop; core functionality works","architecture":"x86_64","bootloader":"grub","firmware_mode":"bios","core":"PASS","networking":"PASS","firmware_quirks":["requires_csm"]},
+    {"id":"C","description":"older x86 BIOS machine; incomplete DMI and no modern sensors","architecture":"x86","bootloader":"syslinux","firmware_mode":"bios","core":"PASS","dmi":"incomplete","sensors":"UNSUPPORTED"},
+    {"id":"D","description":"boot succeeds but Ethernet driver is missing","architecture":"x86_64","bootloader":"grub","firmware_mode":"uefi","core":"PASS","networking":"FAIL","overall":"PARTIAL"},
+    {"id":"E1","description":"same synthetic machine: GRUB UEFI works","machine":"synthetic-e","architecture":"x86_64","bootloader":"grub","firmware_mode":"uefi","core":"PASS"},
+    {"id":"E2","description":"same synthetic machine: SYSLINUX BIOS fails","machine":"synthetic-e","architecture":"x86_64","bootloader":"syslinux","firmware_mode":"bios","bootloader_result":"FAIL","overall":"FAIL"},
+    {"id":"F","description":"bootloader starts; kernel fails before userspace","architecture":"x86_64","bootloader":"grub","firmware_mode":"bios","bootloader_result":"PASS","kernel_result":"FAIL","userspace_result":"NOT_TESTED","provenance":"manual_early_boot"},
+    {"id":"G","description":"no LAN test environment","architecture":"x86_64","bootloader":"grub","firmware_mode":"uefi","core":"PASS","networking":"NOT_TESTED","overall":"PASS"},
+    {"id":"H","description":"hardware-health diagnostic WARN but ProbeOS compatibility passes","architecture":"x86_64","bootloader":"grub","firmware_mode":"uefi","core":"PASS","diagnostics_health":"WARN","overall":"PASS"}
+  ]
+}

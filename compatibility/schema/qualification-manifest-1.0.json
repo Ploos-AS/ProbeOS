@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "SPDX-License-Identifier: GPL-3.0-or-later",
+  "$id": "https://probeos.eu/schema/qualification-manifest-1.0.json",
+  "title": "ProbeOS qualification bundle manifest",
+  "type": "object",
+  "required": ["bundle_schema_version", "procedure_version", "qualification_id", "probeos", "files"],
+  "properties": {
+    "bundle_schema_version": {"const": "1.0"},
+    "procedure_version": {"const": "physical-qualification-v1"},
+    "qualification_id": {"type": "string"},
+    "probeos": {"type": "object"},
+    "files": {"type": "array", "items": {"type": "object", "required": ["path", "sha256", "size"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "size": {"type": "integer", "minimum": 0}}}}
+  }
+}

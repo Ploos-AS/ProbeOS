@@ -90,6 +90,7 @@ PROBEOS_BUILD_CHANNEL=$PROBEOS_BUILD_CHANNEL
 PROBEOS_GIT_COMMIT=$PROBEOS_GIT_COMMIT
 PROBEOS_GIT_SHORT_SHA=$PROBEOS_GIT_SHORT_SHA
 PROBEOS_ARCHITECTURE=$PROBEOS_ARCHITECTURE
+PROBEOS_BOOTLOADER=$BOOTLOADER
 EOF
 
 echo "root:probeos" | chroot "$WORKDIR" /bin/busybox chpasswd
@@ -178,11 +179,13 @@ cp "$REPO_ROOT/src/scripts/probeos-web" "$WORKDIR/usr/local/bin/probeos-web"
 cp "$REPO_ROOT/src/scripts/probe-identify" "$WORKDIR/usr/local/bin/probe-identify"
 cp "$REPO_ROOT/src/scripts/probe-diagnostics" "$WORKDIR/usr/local/bin/probe-diagnostics"
 cp "$REPO_ROOT/src/scripts/probe-benchmark" "$WORKDIR/usr/local/bin/probe-benchmark"
+cp "$REPO_ROOT/src/scripts/probe-qualify" "$WORKDIR/usr/local/bin/probe-qualify"
 mkdir -p "$WORKDIR/usr/local/lib/probeos"
 cp "$REPO_ROOT/src/lib/probe-identify-lib.sh" "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
 cp "$REPO_ROOT/src/lib/report-render.py" "$WORKDIR/usr/local/lib/probeos/report-render.py"
 cp "$REPO_ROOT/src/lib/probe_diagnostics.py" "$WORKDIR/usr/local/lib/probeos/probe_diagnostics.py"
 cp "$REPO_ROOT/src/lib/probe_benchmark.py" "$WORKDIR/usr/local/lib/probeos/probe_benchmark.py"
+cp "$REPO_ROOT/src/lib/probe_qualification.py" "$WORKDIR/usr/local/lib/probeos/probe_qualification.py"
 cp "$REPO_ROOT/src/lib/windows-license.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py"
 cp "$REPO_ROOT/src/web/probeos_web.py" "$WORKDIR/usr/local/lib/probeos/probeos_web.py"
 mkdir -p "$WORKDIR/etc/init.d" "$WORKDIR/etc/conf.d"
@@ -203,12 +206,14 @@ sed -i 's|$SELF_DIR/../lib/windows-license.py|/usr/local/lib/probeos/windows-lic
 sed -i 's|$SELF_DIR/../lib/probe_diagnostics.py|/usr/local/lib/probeos/probe_diagnostics.py|' "$WORKDIR/usr/local/bin/probe-diagnostics"
 # shellcheck disable=SC2016
 sed -i 's|$SELF_DIR/../lib/probe_benchmark.py|/usr/local/lib/probeos/probe_benchmark.py|' "$WORKDIR/usr/local/bin/probe-benchmark"
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/probe_qualification.py|/usr/local/lib/probeos/probe_qualification.py|' "$WORKDIR/usr/local/bin/probe-qualify"
 chmod +x "$WORKDIR/usr/local/bin/"*.sh
 chmod +x "$WORKDIR/usr/local/bin/probeos-network" "$WORKDIR/usr/local/bin/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-web" "$WORKDIR/etc/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-web"
 chmod +x "$WORKDIR/usr/local/bin/probe-identify"
 chmod +x "$WORKDIR/usr/local/bin/probe-diagnostics"
 chmod +x "$WORKDIR/usr/local/bin/probe-benchmark"
-chmod +x "$WORKDIR/usr/local/lib/probeos/report-render.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py" "$WORKDIR/usr/local/lib/probeos/probe_diagnostics.py" "$WORKDIR/usr/local/lib/probeos/probe_benchmark.py"
+chmod +x "$WORKDIR/usr/local/lib/probeos/report-render.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py" "$WORKDIR/usr/local/lib/probeos/probe_diagnostics.py" "$WORKDIR/usr/local/lib/probeos/probe_benchmark.py" "$WORKDIR/usr/local/lib/probeos/probe_qualification.py" "$WORKDIR/usr/local/bin/probe-qualify"
 
 # =========================================
 # Open-source Memtest86+ payload

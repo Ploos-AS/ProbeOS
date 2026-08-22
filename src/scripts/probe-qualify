@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+SELF_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+exec "${PROBE_QUALIFICATION_ENGINE:-$SELF_DIR/../lib/probe_qualification.py}" "$@"

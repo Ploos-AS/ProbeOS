@@ -53,16 +53,26 @@ for Windows licensing semantics and privacy.
 See [docs/web-api.md](docs/web-api.md) and [docs/networking.md](docs/networking.md)
 for Web/API and LAN operation.
 
+ProbeOS v0.2 development provides an offline physical-hardware qualification
+framework and privacy-safe evidence bundles. Compatibility claims are generated
+from reviewed evidence, with physical, emulator, and synthetic results kept
+strictly separate. **Real physical machines qualified: 0.** The framework is
+available, but no physical-machine compatibility claim is made until reviewed
+real evidence is collected. See the generated [compatibility evidence matrix](docs/compatibility.md),
+the [technician procedure](docs/physical-qualification.md), and the
+[evidence/trust architecture](docs/compatibility-evidence.md).
+
 ## Choose an image
 
-| Image | Choose it for | Qualified firmware |
+| Image | Choose it for | Emulator-qualified firmware |
 | --- | --- | --- |
 | `probeos-0.1.0-x86_64-grub.iso` | Preferred general x86_64 image | BIOS (SeaBIOS), x86_64 UEFI (OVMF) |
 | `probeos-0.1.0-x86_64-syslinux.iso` | x86_64 Linux on the legacy BIOS path | BIOS (SeaBIOS) |
 | `probeos-0.1.0-x86-grub.iso` | 32-bit x86 ProbeOS | BIOS (SeaBIOS) |
 | `probeos-0.1.0-x86-syslinux.iso` | 32-bit x86 on the SYSLINUX legacy BIOS path | BIOS (SeaBIOS) |
 
-These are QEMU qualifications, not proof that every physical PC will boot.
+These are QEMU qualifications, not physical-hardware qualifications and not
+proof that every physical PC will boot.
 There is no IA32 UEFI or Secure Boot claim. See
 [the compatibility matrix](docs/release-readiness.md#qualification-matrix)
 and [known limitations](docs/release-readiness.md#known-limitations).

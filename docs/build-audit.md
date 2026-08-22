@@ -89,9 +89,11 @@ discovery.
 
 `xorriso -as mkisofs` creates a no-emulation BIOS El Torito image using
 `boot/syslinux/isolinux.bin`, patches its boot info table, and installs the
-standard `isohdpfx.bin` MBR with a partition offset of 16. The result boots as
-virtual or physical optical media and supports raw USB writing through the
-normal SYSLINUX isohybrid mechanism. No EFI image is added: GRUB owns UEFI.
+standard `isohdpfx.bin` MBR with a partition offset of 16. The result has
+optical and isohybrid structures intended for optical media and raw USB
+writing. Actual physical boot success is evidence-recorded separately; build
+structure alone is not a physical compatibility claim. No EFI image is added:
+GRUB owns the implemented UEFI path.
 
 ## Reproduction and qualification
 
@@ -118,7 +120,7 @@ the offline APK index. The smoke test requires the guest-side marker proving
 expected BIOS/UEFI value from `.firmware.boot_mode`. Serial logs are retained
 as test artifacts at the requested paths.
 
-Qualified artifacts: `out/probeos-x86_64-grub.iso` and
+QEMU-qualified artifacts: `out/probeos-x86_64-grub.iso` and
 `out/probeos-x86-grub.iso`.
 
 | Architecture | Bootloader | Firmware | Result |

@@ -85,6 +85,17 @@ stability_menu() {
     $DIALOG --yesno "ProbeOS Stability Test\n\nDuration: $((seconds / 60)) minutes\nCPU load: high\nMemory load: bounded\nStorage writes: none\n\nTemperatures will be monitored where supported. Start?" 14 72 || return
     tmp=$(mktemp /tmp/probeos-stability.XXXXXX) || return; probe-benchmark stability --duration "$seconds" --output-dir "$REPORT_DIR" >"$tmp" 2>&1 || true; show_text "Stability Results" "$tmp"; rm -f "$tmp"
 }
+qualification_menu() {
+    choice=$($DIALOG --stdout --backtitle "$FOOTER" --title "Compatibility / Qualification" --menu "Local evidence workflow; exports are privacy-safe" 20 82 6 \
+        1 "Start Physical Qualification" 2 "View Qualification Status" 3 "Add Operator Observation" 4 "Record Memtest Result" 5 "Export Privacy-safe Qualification Bundle" 6 "Back") || return
+    case "$choice" in
+        1) medium=$($DIALOG --stdout --menu "Actual boot medium:" 14 60 5 optical Optical usb USB virtual_cd "Virtual CD" virtual_disk "Virtual disk" other Other) || return; probe-qualify start --boot-medium "$medium" --output-dir "$REPORT_DIR" --report-dir "$REPORT_DIR" >/tmp/probeos-qualification.log 2>&1; show_text "Physical Qualification" "$REPORT_DIR/qualification.txt" ;;
+        2) if [ -s "$REPORT_DIR/qualification.txt" ]; then show_text "Physical Qualification" "$REPORT_DIR/qualification.txt"; else $DIALOG --msgbox "Qualification has not been started." 6 60; fi ;;
+        3) field=$($DIALOG --stdout --menu "Operator-observed item:" 16 70 7 boot_menu "Boot menu" console_display "Console display" keyboard Keyboard local_gui "Local GUI" pointer Pointer reboot Reboot poweroff Poweroff) || return; status=$($DIALOG --stdout --menu "Observed result:" 14 60 6 PASS PASS PARTIAL PARTIAL FAIL FAIL NOT_TESTED "Not tested" UNSUPPORTED Unsupported ERROR Error) || return; probe-qualify observe "$field" "$status" >/dev/null ;;
+        4) status=$($DIALOG --stdout --menu "Memtest86+ startup result (not test completion):" 14 65 4 PASS PASS FAIL FAIL NOT_TESTED "Not tested" UNSUPPORTED Unsupported) || return; probe-qualify memtest "$status" >/dev/null ;;
+        5) destination=$($DIALOG --stdout --inputbox "Destination directory:" 8 70 "/tmp") || return; if probe-qualify export "$destination" >/tmp/probeos-qualification-export.log 2>&1; then $DIALOG --msgbox "Privacy-safe qualification bundle exported to $destination" 8 72; else show_text "Export error" /tmp/probeos-qualification-export.log; fi ;;
+    esac
+}
 export_report() {
     ensure_report || return
     destination=$($DIALOG --stdout --inputbox "Directory for report copies:" 9 70 "/tmp") || return
@@ -169,15 +180,15 @@ windows_menu() {
 
 refresh_probe
 while :; do
-    choice=$($DIALOG --stdout --clear --backtitle "$FOOTER" --title "ProbeOS" --menu "Hardware Inspection & Diagnostics" 26 84 19 \
-        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Stability / Burn-in" 16 "Reports / Export" 17 "Shell" 18 "Reboot" 19 "Power Off") || exit 0
+    choice=$($DIALOG --stdout --clear --backtitle "$FOOTER" --title "ProbeOS" --menu "Hardware Inspection & Diagnostics" 27 84 20 \
+        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Stability / Burn-in" 16 "Compatibility / Qualification" 17 "Reports / Export" 18 "Shell" 19 "Reboot" 20 "Power Off") || exit 0
     case "$choice" in
         1) ensure_report && show_text "System Summary" "$REPORT_TEXT" ;;
         2) show_json "CPU" '.cpu' ;; 3) show_json "Memory" '.memory' ;;
         4) show_json "Motherboard / Firmware" '{motherboard,firmware,system:{chassis:.system.chassis}}' ;;
         5) show_json "PCI Devices" '.pci' ;; 6) show_json "USB Devices" '.usb' ;; 7) show_json "Graphics" '.graphics' ;;
         8) show_json "Storage" '.storage' ;; 9) show_json "Network" '.network' ;; 10) network_menu ;; 11) show_json "Sensors / Power" '{sensors,power}' ;;
-        12) windows_menu ;; 13) diagnostics_menu ;; 14) benchmark_menu ;; 15) stability_menu ;; 16) reports_menu ;;
-        17) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 18) reboot ;; 19) poweroff ;;
+        12) windows_menu ;; 13) diagnostics_menu ;; 14) benchmark_menu ;; 15) stability_menu ;; 16) qualification_menu ;; 17) reports_menu ;;
+        18) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 19) reboot ;; 20) poweroff ;;
     esac
 done

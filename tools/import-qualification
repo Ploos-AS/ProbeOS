@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Safely inspect an untrusted qualification bundle and stage a review candidate."""
+
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+import re
+import tarfile
+import tempfile
+from pathlib import Path, PurePosixPath
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location("probe_qualification", ROOT / "src/lib/probe_qualification.py")
+QUAL = importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(QUAL)
+MAX_ARCHIVE = 20 * 1024 * 1024
+MAX_MEMBER = 2 * 1024 * 1024
+MAX_TOTAL = 10 * 1024 * 1024
+ALLOWED = re.compile(r"^(qualification\.(?:json|txt|html)|qualification-manifest\.json|SHA256SUMS|hardware-report\.json|(?:sale|diagnostics|benchmarks|stability)\.(?:json|txt|html))$")
+
+
+def fail(message):
+    raise ValueError(message)
+
+
+def inspect_members(archive):
+    total = 0; names = set()
+    for member in archive.getmembers():
+        path = PurePosixPath(member.name)
+        if member.name != str(path) or path.is_absolute() or ".." in path.parts or len(path.parts) != 1: fail("unsafe archive path: " + member.name)
+        if not member.isfile(): fail("archive contains non-regular file: " + member.name)
+        if not ALLOWED.fullmatch(member.name): fail("unexpected bundle file: " + member.name)
+        if member.name in names: fail("duplicate archive member: " + member.name)
+        if member.size > MAX_MEMBER: fail("oversized bundle member: " + member.name)
+        total += member.size
+        if total > MAX_TOTAL: fail("expanded bundle exceeds size limit")
+        names.add(member.name)
+    required = {"qualification.json", "qualification-manifest.json", "SHA256SUMS"}
+    if not required.issubset(names): fail("bundle is missing required files")
+
+
+def checksum_lines(path):
+    values = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = re.fullmatch(r"([0-9a-f]{64})  ([A-Za-z0-9_.-]+)", line)
+        if not match: fail("malformed SHA256SUMS")
+        if match.group(2) in values: fail("duplicate checksum entry")
+        values[match.group(2)] = match.group(1)
+    return values
+
+
+def existing_records(directory):
+    for path in Path(directory).glob("*.json"):
+        try: yield path, json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError): continue
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Validate an untrusted ProbeOS qualification bundle")
+    parser.add_argument("bundle"); parser.add_argument("--physical-dir", default=str(ROOT / "compatibility/physical")); parser.add_argument("--candidate-dir", default=".")
+    args = parser.parse_args(); source = Path(args.bundle)
+    if not source.is_file() or source.stat().st_size > MAX_ARCHIVE: fail("bundle missing or too large")
+    with tempfile.TemporaryDirectory(prefix="probeos-import-") as temporary:
+        target = Path(temporary)
+        try:
+            with tarfile.open(source, "r:gz") as archive:
+                inspect_members(archive)
+                for member in archive.getmembers():
+                    stream = archive.extractfile(member)
+                    (target / member.name).write_bytes(stream.read())
+        except (tarfile.TarError, EOFError) as error: fail("invalid archive: " + str(error))
+        sums = checksum_lines(target / "SHA256SUMS")
+        actual_names = {path.name for path in target.iterdir() if path.name != "SHA256SUMS"}
+        if set(sums) != actual_names: fail("checksum file set does not match archive")
+        for name, expected in sums.items():
+            if hashlib.sha256((target / name).read_bytes()).hexdigest() != expected: fail("checksum mismatch: " + name)
+        manifest = json.loads((target / "qualification-manifest.json").read_text(encoding="utf-8"))
+        record = json.loads((target / "qualification.json").read_text(encoding="utf-8"))
+        if manifest.get("bundle_schema_version") != "1.0" or manifest.get("qualification_id") != record.get("qualification_id"): fail("manifest identity mismatch")
+        manifest_files = {item.get("path"): item for item in manifest.get("files", [])}
+        for name, item in manifest_files.items():
+            if name not in actual_names or hashlib.sha256((target / name).read_bytes()).hexdigest() != item.get("sha256") or (target / name).stat().st_size != item.get("size"): fail("manifest file mismatch: " + str(name))
+        errors = QUAL.validate_record(record, allow_synthetic=False)
+        if errors: fail("record validation failed: " + "; ".join(errors))
+        duplicates = []; repeats = []
+        for path, existing in existing_records(args.physical_dir):
+            if existing.get("qualification_id") == record["qualification_id"]: duplicates.append(str(path))
+            if existing.get("machine", {}).get("fingerprint") == record.get("machine", {}).get("fingerprint"): repeats.append(str(path))
+        if duplicates: fail("duplicate qualification_id: " + ", ".join(duplicates))
+        candidate = QUAL.redact(record); candidate["provenance"] = "imported_physical_bundle"
+        candidate["review"] = {"status": "pending", "source_bundle_sha256": hashlib.sha256(source.read_bytes()).hexdigest(), "repeated_machine_records": repeats}
+        output = Path(args.candidate_dir) / ("qualification-candidate-" + record["qualification_id"] + ".json")
+        QUAL.atomic_json(output, candidate)
+        print(output)
+        if repeats: print("notice: repeated machine fingerprint in " + ", ".join(repeats))
+
+
+if __name__ == "__main__":
+    try: main()
+    except (ValueError, json.JSONDecodeError, OSError) as error:
+        print("import rejected: " + str(error), file=__import__("sys").stderr); raise SystemExit(1)

@@ -13,7 +13,7 @@ while IFS= read -r file; do
 done < <(git -C "$ROOT" ls-files \
     'assets/scripts/*' 'assets/openbox/autostart' 'build/**/*.sh' \
     'build/alpine/conf.d/*' 'build/alpine/init.d/*' 'ci/*.sh' 'compliance/*.py' \
-    'src/lib/*' 'src/scripts/*' 'src/web/*.py' 'tests/*.sh')
+    'src/lib/*' 'src/scripts/*' 'src/web/*.py' 'tests/*.sh' 'tests/*.py' 'tools/*')
 grep -Fq 'Memtest86+ is GPLv2' "$ROOT/third_party/README.md"
 grep -Fq 'GPL-2.0-only' "$ROOT/docs/release-compliance.md"
 stale_pattern='ProbeOS-authored.*M''IT|ProbeOS .*licensed under the M''IT'

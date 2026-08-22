@@ -24,7 +24,7 @@ Development/qualification ISOs retain stable names. Tagged and RC bundles copy
 the exact qualified bytes to `probeos-<version>-<architecture>-<bootloader>.iso`.
 The manifest and `SHA256SUMS` name those public files exactly.
 
-## Qualification matrix
+## Emulator qualification matrix
 
 | Architecture | Bootloader | Firmware | Linux | Memtest86+ startup | Physical hardware |
 | --- | --- | --- | --- | --- | --- |
@@ -34,11 +34,16 @@ The manifest and `SHA256SUMS` name those public files exactly.
 | x86 | GRUB | BIOS / SeaBIOS | PASS | PASS | Not systematically qualified |
 | x86 | SYSLINUX | BIOS / SeaBIOS | PASS | PASS | Not systematically qualified |
 
-These tests use QEMU TCG in hosted CI. They prove the listed boot paths and
+These tests use QEMU TCG in hosted CI. They prove the listed emulator boot paths and
 startup checks, not coverage of every physical machine. Supported by design:
 x86/x86_64 Linux, GRUB BIOS, x86_64 GRUB UEFI, and SYSLINUX BIOS variants.
 Qualified in QEMU: only the rows above. Physical hardware: no systematic
 release qualification record exists yet.
+
+Physical evidence is now tracked separately and generated deterministically in
+[the compatibility evidence matrix](compatibility.md). At the v0.2 framework
+implementation baseline it contains zero reviewed real physical machines;
+QEMU and synthetic fixtures cannot increment that count.
 
 The Alpine 3.19 `x86` repository is used for the 32-bit ISO and Memtest uses an
 i586 payload, but the repository does not establish a defensible minimum CPU

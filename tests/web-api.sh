@@ -12,6 +12,7 @@ PROBE_FIXTURE_DIR="$ROOT/tests/fixtures/full" \
 "$ROOT/src/scripts/probe-diagnostics" quick --output-dir "$WORK/report" >/dev/null || true
 cp "$ROOT/tests/fixtures/benchmarks.json" "$WORK/report/benchmarks.json"
 cp "$ROOT/tests/fixtures/stability.json" "$WORK/report/stability.json"
+cp "$ROOT/tests/fixtures/qualification.json" "$WORK/report/qualification.json"
 PROBEOS_REPORT_DIR="$WORK/report" PROBEOS_WEB_QUIET=1 \
   PROBEOS_RELEASE_FILE="$WORK/probeos-release" \
   python3 "$ROOT/src/web/probeos_web.py" --bind 127.0.0.1 --port "$PORT" >/dev/null 2>&1 &
@@ -47,6 +48,10 @@ curl -fsS "http://127.0.0.1:$PORT/api/v1/benchmarks/summary" | jq -e '.results[0
 for section in cpu memory storage network; do curl -fsS "http://127.0.0.1:$PORT/api/v1/benchmarks/$section" | jq -e 'type=="array"' >/dev/null; done
 stability=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/stability")
 jq -e '.schema_version=="1.0" and .status=="COMPLETED_NO_NEW_ERRORS"' <<<"$stability" >/dev/null
+qualification=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/qualification")
+jq -e '.schema_version=="1.0" and .environment_type=="synthetic" and .machine.serial_number=="[redacted]"' <<<"$qualification" >/dev/null
+curl -fsS "http://127.0.0.1:$PORT/api/v1/qualification/summary" | jq -e '.overall_status=="PASS" and .platform.bootloader=="grub"' >/dev/null
+grep -Fq 'read-only' < <(curl -fsS "http://127.0.0.1:$PORT/qualification")
 grep -Fq 'This interface cannot start workloads' < <(curl -fsS "http://127.0.0.1:$PORT/benchmarks")
 grep -Fq 'This interface cannot start workloads' < <(curl -fsS "http://127.0.0.1:$PORT/stability")
 grep -Fq 'Fixture Workstation' <<<"$html"
@@ -60,7 +65,7 @@ grep -Fq 'privacy-safe specification sheet' <<<"$sale_html"
 grep -Fq '"serial_number": "[redacted]"' <<<"$report"
 grep -Fq '"mac_address": "[redacted]"' <<<"$report"
 if grep -Fq 'XXXXX-XXXXX-XXXXX-XXXXX-AB234' <<<"$report"; then exit 1; fi
-for payload in "$report" "$html" "$sale" "$sale_html" "$diagnostics" "$diagnostics_html" "$benchmarks" "$stability"; do
+for payload in "$report" "$html" "$sale" "$sale_html" "$diagnostics" "$diagnostics_html" "$benchmarks" "$stability" "$qualification"; do
     if grep -Eq 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE|W269N-WFGWX-YVC9B-4J6C9-T83GX' <<<"$payload"; then exit 1; fi
 done
 
