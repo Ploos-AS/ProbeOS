@@ -54,6 +54,10 @@ grep -Eq "quick_seconds=[0-9]+ firmware=$expected_firmware" "$LOG" || {
     echo "Quick Check runtime or firmware marker missing; see $LOG" >&2
     exit 1
 }
+grep -Fq 'PROBEOS_SECURITY_OK root_password_locked=PASS unexpected_remote_listener=PASS mode=offline local_privileged_console=PASS' "$LOG" || {
+    echo "Offline privilege/listener evidence missing; see $LOG" >&2
+    exit 1
+}
 case $(basename "$ISO") in
     *-syslinux.iso)
         grep -Fq 'ProbeOS - Legacy BIOS' "$LOG" || {

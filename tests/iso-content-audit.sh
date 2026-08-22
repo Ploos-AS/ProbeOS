@@ -13,6 +13,20 @@ if grep -Eiq "(^|[ '/])(\.git|\.ssh|home|root)/(.*)?(id_rsa|id_ed25519|credentia
 fi
 xorriso -osirrox on -indev "$ISO" -extract /probeos.apkovl.tar.gz "$WORK/overlay.tgz" >/dev/null 2>&1
 tar -xzf "$WORK/overlay.tgz" -C "$WORK"
+root_field=$(awk -F: '$1=="root" {print $2}' "$WORK/etc/shadow")
+case "$root_field" in \!*|\**) ;; *) echo 'ISO root password is not locked' >&2; exit 1;; esac
+while IFS=: read -r account _ uid _; do
+    [ "$uid" != 0 ] || [ "$account" = root ] || {
+        field=$(awk -F: -v name="$account" '$1==name {print $2}' "$WORK/etc/shadow")
+        case "$field" in \!*|\**) ;; *) echo 'unexpected reusable administrative password in ISO overlay' >&2; exit 1;; esac
+    }
+done < "$WORK/etc/passwd"
+if rg -a -F 'root:'"probeos" "$WORK/overlay.tgz" "$WORK" >/dev/null; then
+    echo 'historical shared credential found in ISO overlay' >&2; exit 1
+fi
+for service in sshd dropbear telnetd rlogind rexecd; do
+    [ ! -e "$WORK/etc/runlevels/default/$service" ] || { echo "remote shell service enabled: $service" >&2; exit 1; }
+done
 if grep -sRIEq --binary-files=without-match \
         'BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|XXXXX-XXXXX-XXXXX-XXXXX-AB234' \
         "$WORK/etc" "$WORK/usr"; then

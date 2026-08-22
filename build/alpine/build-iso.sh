@@ -93,7 +93,16 @@ PROBEOS_ARCHITECTURE=$PROBEOS_ARCHITECTURE
 PROBEOS_BOOTLOADER=$BOOTLOADER
 EOF
 
-echo "root:probeos" | chroot "$WORKDIR" /bin/busybox chpasswd
+chroot "$WORKDIR" /bin/busybox passwd -l root
+
+cat > "$WORKDIR/etc/inittab" <<'EOF'
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+tty1::respawn:/usr/local/bin/probeos-console
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/openrc shutdown
+EOF
 
 echo "[*] Enabling essential services"
 chroot "$WORKDIR" rc-update add devfs sysinit
@@ -142,6 +151,13 @@ boot_mode=$(jq -er '.firmware.boot_mode | select(. == "BIOS" or . == "UEFI")' \
     echo 'PROBEOS_BOOT_FAIL firmware=invalid' >/dev/console
     exit 1
 }
+security_mode=offline
+grep -Eq '^PROBEOS_WEB_BIND="(0\.0\.0\.0|::)"$' /etc/conf.d/probeos-web && security_mode=lan
+security_evidence=$(/usr/local/bin/probeos-security-audit "$security_mode") || {
+    echo 'PROBEOS_BOOT_FAIL security_audit=failed' >/dev/console
+    exit 1
+}
+echo "PROBEOS_SECURITY_OK $security_evidence local_privileged_console=PASS" >/dev/console
 echo "PROBEOS_BOOT_OK init=/sbin/init probe-identify=present report_txt=present report_json=valid diagnostics_json=valid benchmark_engine=present benchmark_schema=1.0 quick_seconds=$quick_seconds firmware=$boot_mode" >/dev/console
 EOF
 chmod +x "$WORKDIR/etc/local.d/probe-identify.start"
@@ -176,6 +192,8 @@ cp "$REPO_ROOT/src/scripts/gui-menu.sh" "$WORKDIR/usr/local/bin/gui-menu.sh"
 cp "$REPO_ROOT/src/scripts/probeos-network" "$WORKDIR/usr/local/bin/probeos-network"
 cp "$REPO_ROOT/src/scripts/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-udhcpc"
 cp "$REPO_ROOT/src/scripts/probeos-web" "$WORKDIR/usr/local/bin/probeos-web"
+cp "$REPO_ROOT/src/scripts/probeos-console" "$WORKDIR/usr/local/bin/probeos-console"
+cp "$REPO_ROOT/src/scripts/probeos-security-audit" "$WORKDIR/usr/local/bin/probeos-security-audit"
 cp "$REPO_ROOT/src/scripts/probe-identify" "$WORKDIR/usr/local/bin/probe-identify"
 cp "$REPO_ROOT/src/scripts/probe-diagnostics" "$WORKDIR/usr/local/bin/probe-diagnostics"
 cp "$REPO_ROOT/src/scripts/probe-benchmark" "$WORKDIR/usr/local/bin/probe-benchmark"
@@ -210,6 +228,7 @@ sed -i 's|$SELF_DIR/../lib/probe_benchmark.py|/usr/local/lib/probeos/probe_bench
 sed -i 's|$SELF_DIR/../lib/probe_qualification.py|/usr/local/lib/probeos/probe_qualification.py|' "$WORKDIR/usr/local/bin/probe-qualify"
 chmod +x "$WORKDIR/usr/local/bin/"*.sh
 chmod +x "$WORKDIR/usr/local/bin/probeos-network" "$WORKDIR/usr/local/bin/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-web" "$WORKDIR/etc/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-web"
+chmod +x "$WORKDIR/usr/local/bin/probeos-console" "$WORKDIR/usr/local/bin/probeos-security-audit"
 chmod +x "$WORKDIR/usr/local/bin/probe-identify"
 chmod +x "$WORKDIR/usr/local/bin/probe-diagnostics"
 chmod +x "$WORKDIR/usr/local/bin/probe-benchmark"

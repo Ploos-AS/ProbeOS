@@ -24,6 +24,7 @@ tests/benchmarks.sh
 tests/qualification.sh
 tests/web-api.sh
 tests/network.sh
+tests/security.sh
 tests/package-resolution.sh
 tests/release-metadata.sh
 tests/license.sh

@@ -42,6 +42,7 @@ for _ in $(seq 1 30); do
     sleep 1
 done
 [ "$boot_ready" -eq 1 ] || { echo "ProbeOS boot completion marker missing" >&2; exit 1; }
+grep -Fq 'PROBEOS_SECURITY_OK root_password_locked=PASS unexpected_remote_listener=PASS mode=lan local_privileged_console=PASS' "$LOG"
 jq -e '.service=="running" and .api_version=="1" and .report_available==true and .diagnostics_available==true' <<<"$health" >/dev/null
 report=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report")
 jq -e '(.schema_version=="1.1") and (.default_human_profile=="sale") and ([.network[]? | select(.interface!="lo")] | length >= 1)' <<<"$report" >/dev/null
@@ -60,4 +61,13 @@ if grep -Fq 'Status: Not run' <<<"$home"; then
     echo 'sale profile was not refreshed with completed Quick Check results' >&2
     exit 1
 fi
+for method in POST PUT PATCH DELETE; do
+    code=$(curl -sS -o /dev/null -w '%{http_code}' -X "$method" "http://127.0.0.1:$PORT/api/v1/health")
+    case "$code" in 404|405|501) ;; *) echo "API accepted privileged-capable method $method ($code)" >&2; exit 1;; esac
+done
+for host_port in 22 23 512 513 514; do
+    if timeout 1 bash -c "</dev/tcp/127.0.0.1/$host_port" 2>/dev/null; then
+        echo "unexpected administrative listener reachable on host port $host_port" >&2; exit 1
+    fi
+done
 echo "ok - QEMU DHCP/user-network and forwarded ProbeOS Web/API passed"

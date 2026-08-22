@@ -111,9 +111,12 @@ needs OVMF at `/usr/share/OVMF`, or `OVMF_CODE` and `OVMF_VARS` set to suitable
 firmware files. Both tests disable guest networking and write their serial logs
 under `${TMPDIR:-/tmp}` unless a log path is passed as the third argument.
 
-The resulting root login password is `probeos`. See
-[`docs/build-audit.md`](docs/build-audit.md) for the live-media architecture,
-qualification evidence, and current limitations.
+ProbeOS contains no shared administrative password. The root password is
+locked; the physically present operator uses the local ProbeOS interface and
+its explicitly labelled privileged shell. No remote shell is enabled. The Web
+UI/API remains read-only, binds to loopback by default, and requires explicit
+trusted-LAN opt-in. See [security](docs/security.md) and
+[`docs/build-audit.md`](docs/build-audit.md).
 
 ProbeOS also includes the offline, open-source Memtest86+ v8.10 boot option;
 see [`docs/memtest.md`](docs/memtest.md) for provenance, licensing, and

@@ -217,7 +217,7 @@ def create_record(args):
         "diagnostics_execution": result("PASS" if diagnostics_valid else "FAIL", schema_version=diagnostics.get("schema_version")),
         "diagnostics_health": result("PASS" if diagnostics_valid else "NOT_TESTED", summary="Health result is not compatibility aggregation.", health_status=diagnostics.get("overall_status")),
         "networking": result("NOT_TESTED", summary="No DHCP environment was asserted."),
-        "web_api": result("NOT_TESTED"), "console_display": result("NOT_TESTED"), "local_gui": result("NOT_TESTED"),
+        "web_api": result("NOT_TESTED"), "unexpected_remote_listener": result("NOT_TESTED", summary="Run the local security audit in the applicable offline or LAN mode."), "console_display": result("NOT_TESTED"), "local_gui": result("NOT_TESTED"),
         "keyboard": result("NOT_TESTED"), "pointer": result("NOT_TESTED"),
         "storage_enumeration": result("PASS" if isinstance(report.get("storage"), list) else "ERROR", summary="Read-only inventory only; no storage writes performed."),
         "usb_enumeration": result("PASS" if isinstance(report.get("usb"), list) else "ERROR"),

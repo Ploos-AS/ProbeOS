@@ -181,7 +181,7 @@ windows_menu() {
 refresh_probe
 while :; do
     choice=$($DIALOG --stdout --clear --backtitle "$FOOTER" --title "ProbeOS" --menu "Hardware Inspection & Diagnostics" 27 84 20 \
-        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Stability / Burn-in" 16 "Compatibility / Qualification" 17 "Reports / Export" 18 "Shell" 19 "Reboot" 20 "Power Off") || exit 0
+        1 "Sale Report" 2 "CPU" 3 "Memory" 4 "Motherboard / Firmware" 5 "PCI Devices" 6 "USB Devices" 7 "Graphics" 8 "Storage" 9 "Network" 10 "Network / Web UI" 11 "Sensors / Power" 12 "Windows Licensing" 13 "Diagnostics" 14 "Benchmarks" 15 "Stability / Burn-in" 16 "Compatibility / Qualification" 17 "Reports / Export" 18 "Open Privileged Shell" 19 "Reboot" 20 "Power Off") || exit 0
     case "$choice" in
         1) ensure_report && show_text "System Summary" "$REPORT_TEXT" ;;
         2) show_json "CPU" '.cpu' ;; 3) show_json "Memory" '.memory' ;;
@@ -189,6 +189,6 @@ while :; do
         5) show_json "PCI Devices" '.pci' ;; 6) show_json "USB Devices" '.usb' ;; 7) show_json "Graphics" '.graphics' ;;
         8) show_json "Storage" '.storage' ;; 9) show_json "Network" '.network' ;; 10) network_menu ;; 11) show_json "Sensors / Power" '{sensors,power}' ;;
         12) windows_menu ;; 13) diagnostics_menu ;; 14) benchmark_menu ;; 15) stability_menu ;; 16) qualification_menu ;; 17) reports_menu ;;
-        18) clear; echo "Type 'exit' to return to ProbeOS."; /bin/sh ;; 19) reboot ;; 20) poweroff ;;
+        18) clear; printf '%s\n' 'Privileged local shell' 'Changes affect the running ProbeOS session and attached devices.' "Type 'exit' to return to ProbeOS."; /bin/sh ;; 19) reboot ;; 20) poweroff ;;
     esac
 done

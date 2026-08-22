@@ -73,7 +73,7 @@ https://probeos.eu
 © 2026 Ploos AS
 EOF
 
-echo "root:probeos" | chroot "$ROOTFS" chpasswd
+chroot "$ROOTFS" passwd -l root
 
 # Enable essential services
 chroot "$ROOTFS" rc-update add devfs sysinit

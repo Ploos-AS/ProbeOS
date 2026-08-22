@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Emit listener/account evidence without secret material.
+set -eu
+mode=${1:-offline}
+case "$mode" in offline|lan) ;; *) echo 'usage: probeos-security-audit [offline|lan]' >&2; exit 2;; esac
+root_field=$(awk -F: '$1=="root" {print $2}' /etc/shadow)
+case "$root_field" in \!*|\**) root_locked=true;; *) root_locked=false;; esac
+listeners=$(ss -H -lntu 2>/dev/null || true)
+unexpected=''
+while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    address=$(printf '%s\n' "$line" | awk '{print $5}')
+    case "$address" in
+        127.0.0.1:8080|'[::1]:8080') ;;
+        0.0.0.0:8080|'[::]:8080') [ "$mode" = lan ] || unexpected="$unexpected $address" ;;
+        0.0.0.0:68|'[::]:546'|*:68) ;;
+        *) unexpected="$unexpected $address" ;;
+    esac
+done <<EOF
+$listeners
+EOF
+[ "$root_locked" = true ] || { echo 'root_password_locked=FAIL'; exit 1; }
+[ -z "$unexpected" ] || { echo "unexpected_remote_listener=FAIL listeners=$unexpected"; exit 1; }
+echo "root_password_locked=PASS unexpected_remote_listener=PASS mode=$mode"

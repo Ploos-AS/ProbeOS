@@ -232,6 +232,7 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
             body = "<p>ProbeOS " + html.escape(identity["product_version"]) + " (" + html.escape(identity["build_channel"]) + " build)</p>"
             body += "<p>Commit: " + html.escape(identity["git_commit"]) + "; architecture: " + html.escape(identity["architecture"]) + ".</p>"
             body += "<p>ProbeOS is an offline-first hardware inspection environment.</p>"
+            body += "<p>Remote administrative login: Disabled. Web/API access is read-only.</p>"
             body += "<p>This interface reads the authoritative probe-identify report; it does not run a probe per request.</p>"
         elif path == "/benchmarks":
             value, result_error = load_result(self.report_dir, "benchmarks")

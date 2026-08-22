@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Local appliance console, invoked directly by init on tty1 as UID 0.
+export HOME=/root USER=root LOGNAME=root
+cd /root || exit 1
+while :; do
+    /usr/local/bin/tui-menu.sh
+    printf '%s\n' 'ProbeOS interface exited; restarting.'
+    sleep 1
+done
