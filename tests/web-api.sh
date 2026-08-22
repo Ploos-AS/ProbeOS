@@ -22,7 +22,7 @@ health=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/health")
 jq -e '.service=="running" and .api_version=="1" and .product_version=="development" and .build_channel=="development" and .report_available==true and (.report_generated_at|type)=="string"' <<<"$health" >/dev/null
 report=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report")
 jq empty <<<"$report"
-jq -e '.schema_version=="1.0" and (.cpu|type)=="array" and (.windows|type)=="object"' <<<"$report" >/dev/null
+jq -e '.schema_version=="1.1" and .default_human_profile=="sale" and (.cpu|type)=="array" and (.windows|type)=="object"' <<<"$report" >/dev/null
 for section in system cpu memory firmware motherboard pci usb graphics storage network sensors power windows; do
     curl -fsS "http://127.0.0.1:$PORT/api/v1/$section" | jq empty >/dev/null
 done
@@ -30,10 +30,20 @@ html=$(curl -fsS "http://127.0.0.1:$PORT/")
 grep -Fq 'ProbeOS' <<<"$html"
 if grep -Eiq '<script|javascript:' <<<"$html"; then exit 1; fi
 grep -Fq '/api/v1/report' <<<"$html"
+grep -Fq 'Fixture Workstation' <<<"$html"
+profiles=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/profiles")
+jq -e '.default=="sale" and .available==["sale","detailed","full"]' <<<"$profiles" >/dev/null
+sale=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report/sale")
+jq -e '.profile=="sale" and .system.model=="Fixture Workstation"' <<<"$sale" >/dev/null
+sale_html=$(curl -fsS "http://127.0.0.1:$PORT/sale-report")
+grep -Fq 'privacy-safe specification sheet' <<<"$sale_html"
 
 grep -Fq '"serial_number": "[redacted]"' <<<"$report"
 grep -Fq '"mac_address": "[redacted]"' <<<"$report"
 if grep -Fq 'XXXXX-XXXXX-XXXXX-XXXXX-AB234' <<<"$report"; then exit 1; fi
+for payload in "$report" "$html" "$sale" "$sale_html"; do
+    if grep -Eq 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE|W269N-WFGWX-YVC9B-4J6C9-T83GX' <<<"$payload"; then exit 1; fi
+done
 
 full=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report?privacy=full")
 grep -Fq '"serial_number": "SYS123"' <<<"$full"

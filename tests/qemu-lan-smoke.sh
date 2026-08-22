@@ -35,7 +35,7 @@ done
 }
 jq -e '.service=="running" and .api_version=="1" and .report_available==true' <<<"$health" >/dev/null
 report=$(curl -fsS "http://127.0.0.1:$PORT/api/v1/report")
-jq -e '(.schema_version=="1.0") and ([.network[]? | select(.interface!="lo")] | length >= 1)' <<<"$report" >/dev/null
+jq -e '(.schema_version=="1.1") and (.default_human_profile=="sale") and ([.network[]? | select(.interface!="lo")] | length >= 1)' <<<"$report" >/dev/null
 jq -e '[.. | objects | .serial_number? // empty] | all(. == "[redacted]")' <<<"$report" >/dev/null
 jq -e '[.. | objects | .mac_address? // empty] | all(. == "[redacted]")' <<<"$report" >/dev/null
 if grep -Eq '[A-Z0-9]{5}(-[A-Z0-9]{5}){4}' <<<"$report"; then

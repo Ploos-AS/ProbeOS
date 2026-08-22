@@ -31,11 +31,16 @@ claim of universal physical-hardware compatibility or certification.
 ## Hardware reports
 
 `probe-identify` is the central read-only hardware inventory. It generates a
-human-readable report and stable-schema JSON under `/run/probeos`. The optional
+privacy-safe sale report by default, detailed/full profiles, standalone HTML,
+and stable-schema JSON under `/run/probeos`. Development after v0.1.0 adds
+conservative offline Windows key recovery with explicit local reveal/export;
+normal reports, Web UI, and API never contain complete product keys. The optional
 retro-friendly local Web UI/API presents that same report without probing again.
 See
 [`docs/hardware-identification.md`](docs/hardware-identification.md) for data
-sources, Windows OEM-license handling, privacy guidance, and limitations.
+sources and limitations, [docs/reporting.md](docs/reporting.md) for report
+profiles, and [docs/windows-license-discovery.md](docs/windows-license-discovery.md)
+for Windows licensing semantics and privacy.
 See [docs/web-api.md](docs/web-api.md) and [docs/networking.md](docs/networking.md)
 for Web/API and LAN operation.
 

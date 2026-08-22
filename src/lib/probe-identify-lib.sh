@@ -154,8 +154,10 @@ enrich_storage() {
 }
 
 parse_memory() {
-    local file=$1 total
-    total=$(awk '/^MemTotal:/{print $2*1024}' /proc/meminfo 2>/dev/null || true)
+    local file=$1 total meminfo
+    meminfo=$(fixture_path meminfo)
+    [[ -n "$meminfo" ]] || meminfo=/proc/meminfo
+    total=$(awk '/^MemTotal:/{print $2*1024}' "$meminfo" 2>/dev/null || true)
     [[ -s "$file" ]] || { jq -n --arg total "$total" '{total_usable_bytes:($total|tonumber?),slots:{total:null,populated:null,empty:null},dimms:[]}'; return; }
     awk '
       /^[[:space:]]*Memory Device$/ {if(in_dev) print rec; in_dev=1; rec=""; next}
@@ -176,17 +178,34 @@ firmware_license_json() {
     local file=${1:-} key=${2:-} exists=false found=false masked=""
     [[ -n "$file" && -e "$file" ]] && exists=true
     if [[ -n "$key" ]]; then found=true; masked=$(mask_key "$key"); fi
-    jq -n --argjson exists "$exists" --argjson found "$found" --arg masked "$masked" '{msdm_present:$exists,oem_key_found:$found,source:(if $exists then "ACPI MSDM" else null end),key_masked:(if $masked=="" then null else $masked end),key_disclosure:"Use --reveal-key or --export-key FILE; normal reports never contain the complete key."}'
+    jq -n --argjson exists "$exists" --argjson found "$found" --arg masked "$masked" '{msdm_present:$exists,oem_key_found:$found,source:(if $exists then "firmware_msdm" else null end),key_type:(if $found then "OEM_DM" else null end),confidence:(if $found then "high" else null end),reusable_hint:(if $found then "May be useful when reinstalling the matching Windows edition; activation is not guaranteed." else null end),key_masked:(if $masked=="" then null else $masked end),key_disclosure:"Use an explicit local reveal or sensitive export; normal reports never contain the complete key."}'
+}
+
+sanitize_windows_installations() {
+    jq 'map(. as $item | ($item.recoverable_product_key // null) as $key |
+      . + {recoverable_key_status:(if $key then "found" else (.recoverable_key_status // "not_established") end),
+           recovered_key:{source:(.recovered_key.source // (if $key then "offline_registry" else null end)),
+             key_type:(.recovered_key.key_type // .key_type // null),confidence:(.recovered_key.confidence // .confidence // null),
+             reusable_hint:(.recovered_key.reusable_hint // .reusable_hint // null),edition_hint:(.recovered_key.edition_hint // .edition // null)}} |
+      del(.recoverable_product_key,.key,.key_type,.confidence,.reusable_hint) |
+      .activation_status=(.activation_status // "cannot be reliably determined offline"))'
 }
 
 discover_windows() {
-    local _tmp=$1 allow_mount=$2 fixture
+    local _tmp=$1 allow_mount=$2 fixture fixture_json
     fixture=$(fixture_path windows_installations.json)
-    if [[ -n "$fixture" ]]; then jq 'if type=="array" then . else [] end' "$fixture" 2>/dev/null || printf '[]'; return; fi
+    if [[ -n "$fixture" ]]; then
+        fixture_json=$(jq -c 'if type=="array" then . else [] end' "$fixture" 2>/dev/null) || { printf '[]'; return; }
+        if [[ -n "${SENSITIVE_KEYS_FILE:-}" ]]; then
+            jq -c '.[] | select(.recoverable_product_key) | {source:"offline_registry",key:.recoverable_product_key,key_type:(.key_type // .recovered_key.key_type // "unknown"),confidence:(.confidence // .recovered_key.confidence // "low"),reusable_hint:(.reusable_hint // .recovered_key.reusable_hint // "possible_not_guaranteed"),edition_hint:(.edition // .product_name // null),installation:(.device // null)}' <<< "$fixture_json" >> "$SENSITIVE_KEYS_FILE" 2>/dev/null || true
+        fi
+        sanitize_windows_installations <<< "$fixture_json"; return
+    fi
     [[ -n "${PROBE_FIXTURE_DIR:-}" || "$allow_mount" != 1 ]] && { printf '[]'; return; }
     # Candidate discovery is conservative. Only currently mounted filesystems and
     # successful read-only mounts are inspected; every mount is cleaned by trap.
-    local dev fstype mountpoint candidate hive name version build product_id arch channel
+    local dev fstype mountpoint candidate hive name edition version build product_id arch channel metadata recovered helper
+    helper=${PROBE_WINDOWS_HELPER:-$SELF_DIR/../lib/windows-license.py}
     while IFS=$'\t' read -r dev fstype mountpoint; do
         [[ "$fstype" =~ ^(ntfs|ntfs3|vfat|exfat)$ ]] || continue
         candidate="$mountpoint"
@@ -196,17 +215,22 @@ discover_windows() {
         fi
         [[ -d "$candidate/Windows/System32/config" ]] || continue
         hive="$candidate/Windows/System32/config/SOFTWARE"
-        name=""; version=""; build=""; product_id=""; arch=""; channel=""
+        name=""; edition=""; version=""; build=""; product_id=""; arch=""; channel=""; recovered=null
+        if [[ -d "$candidate/Windows/SysWOW64" ]]; then arch=x86_64; else arch=x86; fi
         if have hivexregedit && [[ -r "$hive" ]]; then
             metadata=$(hivexregedit --export "$hive" 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion' 2>/dev/null || true)
             name=$(printf '%s\n' "$metadata" | sed -n 's/^"ProductName"="\(.*\)"/\1/p' | head -n1)
             version=$(printf '%s\n' "$metadata" | sed -n 's/^"DisplayVersion"="\(.*\)"/\1/p' | head -n1)
             build=$(printf '%s\n' "$metadata" | sed -n 's/^"CurrentBuild"="\(.*\)"/\1/p' | head -n1)
             product_id=$(printf '%s\n' "$metadata" | sed -n 's/^"ProductId"="\(.*\)"/\1/p' | head -n1)
-            channel=$(printf '%s\n' "$metadata" | sed -n 's/^"CompositionEditionID"="\(.*\)"/\1/p' | head -n1)
+            edition=$(printf '%s\n' "$metadata" | sed -n 's/^"EditionID"="\(.*\)"/\1/p' | head -n1)
+            if [[ -x "$helper" ]]; then recovered=$(printf '%s\n' "$metadata" | "$helper" --registry-export --channel "$channel" 2>/dev/null || printf null); fi
         fi
-        jq -nc --arg device "$dev" --arg fs "$fstype" --arg name "$name" --arg version "$version" --arg build "$build" --arg pid "$product_id" --arg arch "$arch" --arg channel "$channel" 'def n($x):if $x=="" then null else $x end; {device:$device,filesystem:$fs,product_name:n($name),edition:null,architecture:n($arch),version:n($version),build:n($build),product_id:n($pid),license_channel:n($channel),registry_metadata_read:($name!="" or $build!=""),recoverable_product_key:null,activation_status:"not reliably determinable offline",firmware_key_relationship:"not reliably determinable offline"}'
-    done < <(lsblk -rno PATH,FSTYPE,MOUNTPOINT 2>/dev/null) | jq -s .
+        if [[ "$recovered" != null && -n "${SENSITIVE_KEYS_FILE:-}" ]]; then
+            jq -nc --argjson value "$recovered" --arg edition "$name" --arg device "$dev" '$value + {source:"offline_registry",edition_hint:(if $edition=="" then null else $edition end),installation:$device}' >> "$SENSITIVE_KEYS_FILE"
+        fi
+        jq -nc --arg device "$dev" --arg fs "$fstype" --arg name "$name" --arg edition "$edition" --arg version "$version" --arg build "$build" --arg pid "$product_id" --arg arch "$arch" --arg channel "$channel" --argjson recovered "$recovered" 'def n($x):if $x=="" then null else $x end; {device:$device,filesystem:$fs,product_name:n($name),edition:n($edition),architecture:n($arch),version:n($version),build:n($build),product_id:n($pid),license_channel:n($channel),registry_metadata_read:($name!="" or $build!=""),recoverable_product_key:($recovered.key // null),recovered_key:(if $recovered then ($recovered|del(.key)|.source="offline_registry") else null end),activation_status:"cannot be reliably determined offline",firmware_key_relationship:"cannot be reliably determined offline"}'
+    done < <(lsblk -rno PATH,FSTYPE,MOUNTPOINT 2>/dev/null) | jq -s . | sanitize_windows_installations
 }
 
 parse_sensors() {
@@ -214,10 +238,12 @@ parse_sensors() {
     if [[ -s "$file" ]] && jq empty "$file" >/dev/null 2>&1; then jq '{status:"available",readings:.}' "$file"; else jq -n '{status:"unavailable",readings:null}'; fi
 }
 parse_power() {
-    local base entries='[]'
+    local base entries='[]' fixture
+    fixture=$(fixture_path power.json)
+    if [[ -n "$fixture" ]]; then jq 'if type=="object" then . else {supplies:[]} end' "$fixture" 2>/dev/null || printf '{"supplies":[]}' ; return; fi
     for base in /sys/class/power_supply/*; do
         [[ -d "$base" ]] || continue
-        entries=$(jq -n --argjson old "$entries" --arg name "$(basename "$base")" --arg type "$(cat "$base/type" 2>/dev/null)" --arg status "$(cat "$base/status" 2>/dev/null)" --arg capacity "$(cat "$base/capacity" 2>/dev/null)" --arg manufacturer "$(cat "$base/manufacturer" 2>/dev/null)" --arg model "$(cat "$base/model_name" 2>/dev/null)" --arg serial "$(cat "$base/serial_number" 2>/dev/null)" 'def n($x):if $x=="" then null else $x end; $old + [{name:$name,type:n($type),status:n($status),capacity_percent:($capacity|tonumber?),manufacturer:n($manufacturer),model:n($model),serial_number:n($serial)}]')
+        entries=$(jq -n --argjson old "$entries" --arg name "$(basename "$base")" --arg type "$(cat "$base/type" 2>/dev/null)" --arg status "$(cat "$base/status" 2>/dev/null)" --arg capacity "$(cat "$base/capacity" 2>/dev/null)" --arg manufacturer "$(cat "$base/manufacturer" 2>/dev/null)" --arg model "$(cat "$base/model_name" 2>/dev/null)" --arg serial "$(cat "$base/serial_number" 2>/dev/null)" --arg design "$(cat "$base/energy_full_design" 2>/dev/null)" --arg full "$(cat "$base/energy_full" 2>/dev/null)" --arg cycles "$(cat "$base/cycle_count" 2>/dev/null)" 'def n($x):if $x=="" then null else $x end; $old + [{name:$name,type:n($type),status:n($status),capacity_percent:($capacity|tonumber?),manufacturer:n($manufacturer),model:n($model),serial_number:n($serial),design_capacity:($design|tonumber?),full_charge_capacity:($full|tonumber?),cycle_count:($cycles|tonumber?)}]')
     done
     jq -n --argjson supplies "$entries" '{supplies:$supplies}'
 }

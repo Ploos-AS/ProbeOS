@@ -163,6 +163,8 @@ cp "$REPO_ROOT/src/scripts/probeos-web" "$WORKDIR/usr/local/bin/probeos-web"
 cp "$REPO_ROOT/src/scripts/probe-identify" "$WORKDIR/usr/local/bin/probe-identify"
 mkdir -p "$WORKDIR/usr/local/lib/probeos"
 cp "$REPO_ROOT/src/lib/probe-identify-lib.sh" "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
+cp "$REPO_ROOT/src/lib/report-render.py" "$WORKDIR/usr/local/lib/probeos/report-render.py"
+cp "$REPO_ROOT/src/lib/windows-license.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py"
 cp "$REPO_ROOT/src/web/probeos_web.py" "$WORKDIR/usr/local/lib/probeos/probeos_web.py"
 mkdir -p "$WORKDIR/etc/init.d" "$WORKDIR/etc/conf.d"
 cp "$SCRIPT_DIR/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-network"
@@ -174,9 +176,14 @@ chroot "$WORKDIR" rc-update add probeos-web default
 # Replace the literal runtime fallback.
 # shellcheck disable=SC2016
 sed -i 's|$SELF_DIR/../lib/probe-identify-lib.sh|/usr/local/lib/probeos/probe-identify-lib.sh|' "$WORKDIR/usr/local/bin/probe-identify"
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/report-render.py|/usr/local/lib/probeos/report-render.py|' "$WORKDIR/usr/local/bin/probe-identify"
+# shellcheck disable=SC2016
+sed -i 's|$SELF_DIR/../lib/windows-license.py|/usr/local/lib/probeos/windows-license.py|' "$WORKDIR/usr/local/lib/probeos/probe-identify-lib.sh"
 chmod +x "$WORKDIR/usr/local/bin/"*.sh
 chmod +x "$WORKDIR/usr/local/bin/probeos-network" "$WORKDIR/usr/local/bin/probeos-udhcpc" "$WORKDIR/usr/local/bin/probeos-web" "$WORKDIR/etc/init.d/probeos-network" "$WORKDIR/etc/init.d/probeos-web"
 chmod +x "$WORKDIR/usr/local/bin/probe-identify"
+chmod +x "$WORKDIR/usr/local/lib/probeos/report-render.py" "$WORKDIR/usr/local/lib/probeos/windows-license.py"
 
 # =========================================
 # Open-source Memtest86+ payload

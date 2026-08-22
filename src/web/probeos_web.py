@@ -19,9 +19,9 @@ SECTIONS = (
     "graphics", "storage", "network", "sensors", "power", "windows",
 )
 PAGE_TITLES = {"/": "Summary", **{"/" + name: name.title() for name in SECTIONS},
-               "/benchmarks": "Benchmarks", "/export": "Export", "/about": "About"}
+               "/sale-report": "Sale Report", "/benchmarks": "Benchmarks", "/export": "Export", "/about": "About"}
 API_SECTIONS = {name: name for name in SECTIONS}
-SENSITIVE = re.compile(r"(?:^|_)(?:serial|uuid|mac)(?:_|$)|^(?:serial|uuid)$", re.I)
+SENSITIVE = re.compile(r"(?:^|_)(?:serial|uuid|mac)(?:_|$)|^(?:serial|uuid|key|product_key|recoverable_product_key)$", re.I)
 
 
 def load_identity():
@@ -49,6 +49,15 @@ def load_report(report_dir):
         if not isinstance(value, dict):
             raise ValueError("report root is not an object")
         return value, None
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return None, str(error)
+
+
+def load_profile(report_dir, profile, extension="json"):
+    path = os.path.join(report_dir, profile + "." + extension)
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            return json.load(stream) if extension == "json" else stream.read(), None
     except (OSError, ValueError, json.JSONDecodeError) as error:
         return None, str(error)
 
@@ -129,6 +138,21 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
         if suffix == "/report":
             self.send_json(report)
             return
+        if suffix == "/profiles":
+            self.send_json({"default": "sale", "available": ["sale", "detailed", "full"],
+                            "endpoints": {"sale": "/api/v1/report/sale", "detailed": "/api/v1/report/detailed", "full": "/api/v1/report/full"}})
+            return
+        if suffix.startswith("/report/"):
+            profile = suffix.rsplit("/", 1)[-1]
+            if profile not in ("sale", "detailed", "full"):
+                self.send_json({"error": "not_found", "path": path}, HTTPStatus.NOT_FOUND)
+                return
+            value, profile_error = load_profile(self.report_dir, profile)
+            if value is None:
+                self.send_json({"error": "report_unavailable", "detail": profile_error}, HTTPStatus.SERVICE_UNAVAILABLE)
+            else:
+                self.send_json(redact(value))
+            return
         section = suffix.lstrip("/")
         if section in API_SECTIONS:
             self.send_json(report.get(API_SECTIONS[section]))
@@ -153,16 +177,23 @@ class ProbeOSHandler(BaseHTTPRequestHandler):
             if report is None:
                 body = "<p>Report unavailable: " + html.escape(error or "unknown error") + "</p>"
             else:
-                body = "<p>Redacted JSON export:</p><pre>" + html.escape(json.dumps(report, indent=2, ensure_ascii=False)) + "</pre>"
+                sale_report, sale_error = load_profile(self.report_dir, "sale")
+                body = "<p>Privacy-safe sale JSON export:</p><pre>" + html.escape(json.dumps(sale_report, indent=2, ensure_ascii=False) if sale_report else sale_error) + "</pre>"
         elif report is None:
             body = "<p>Report unavailable: " + html.escape(error or "unknown error") + "</p>"
         elif path == "/":
             generated = report.get("probeos", {}).get("generated_at", "unknown")
             body = "<p>Generated: " + html.escape(str(generated)) + "</p>"
-            body += "<p>Schema: " + html.escape(str(report.get("schema_version", "unknown"))) + "</p>"
-            body += "<ul>" + "".join("<li><a href='" + name + "'>" + html.escape(title) + "</a></li>"
-                                      for name, title in PAGE_TITLES.items() if name not in ("/", "/about", "/benchmarks", "/export")) + "</ul>"
-            body += "<p><a href='/api/v1/report'>JSON API report</a> · <a href='/export'>Export</a></p>"
+            sale_text, sale_error = load_profile(self.report_dir, "sale", "txt")
+            body += "<pre>" + html.escape(sale_text or sale_error or "Sale report unavailable") + "</pre>"
+            body += "<p><a href='/sale-report'>Printable sale report</a> · <a href='/api/v1/report/sale'>Sale JSON</a> · <a href='/api/v1/profiles'>Profiles</a></p>"
+        elif path == "/sale-report":
+            document, sale_error = load_profile(self.report_dir, "sale", "html")
+            if document is None:
+                body = "<p>Sale report unavailable: " + html.escape(sale_error or "unknown") + "</p>"
+            else:
+                self.send_bytes(document.encode("utf-8"), "text/html; charset=utf-8")
+                return
         else:
             section = path.lstrip("/")
             body = "<pre>" + html.escape(json.dumps(report.get(section), indent=2, ensure_ascii=False)) + "</pre>"

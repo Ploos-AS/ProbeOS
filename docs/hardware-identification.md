@@ -1,4 +1,4 @@
-# Hardware Identification v1
+# Hardware Identification and Reporting
 
 `probe-identify` is the authoritative ProbeOS hardware inventory. The TUI and
 GUI are presentation layers over its reports; they do not run their own
@@ -6,8 +6,9 @@ hardware-discovery command sets.
 
 ## Operation and safety
 
-Running `probe-identify` writes `/run/probeos/report.txt` and
-`/run/probeos/report.json`. Individual command failures and absent hardware are
+Running `probe-identify` writes the authoritative `/run/probeos/report.json`,
+the default sale `/run/probeos/report.txt`, and sale/detailed/full profile
+outputs documented in [reporting.md](reporting.md). Individual command failures and absent hardware are
 represented by empty arrays, `null`, `unknown`, or an explicit status and do
 not abort other probe sections. External commands have a 20-second default
 limit. Override it with `PROBE_COMMAND_TIMEOUT` when diagnosing unusually slow
@@ -24,7 +25,7 @@ Candidate Windows filesystems are mounted only when needed and only with
 `--no-windows-mount` to disable this discovery. ProbeOS never uses filesystem
 repair or writes a Windows hive.
 
-## Report schema 1.0
+## Report schema 1.1
 
 The JSON document has stable top-level keys:
 
@@ -56,6 +57,8 @@ slot counts, and populated DIMMs. Device arrays retain numeric IDs and drivers
 where their data sources expose them. Missing scalar values are JSON `null`;
 missing collections are empty arrays.
 
+Schema 1.1 is additive over 1.0 and introduces report-profile metadata and
+structured Windows key-discovery metadata without storing plaintext keys.
 Schema additions may occur in compatible v1 releases. Existing keys will not
 change meaning without a schema-version change.
 
@@ -81,10 +84,10 @@ they cannot be established reliably offline.
 
 ## Privacy
 
-Reports can contain machine, board, storage, DIMM and battery serial numbers;
-system UUIDs; and network MAC addresses. Treat reports as sensitive before
-sharing them. Full OEM keys exported explicitly are credentials and require
-stronger handling.
+The authoritative inventory can contain machine identifiers. Normal sale,
+detailed, full, Web and API presentations redact them. Complete product keys
+exist only in explicit local reveal/export paths. See
+[Windows License Discovery v2](windows-license-discovery.md).
 
 ## Known limitations
 

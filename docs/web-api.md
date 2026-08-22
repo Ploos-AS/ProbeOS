@@ -13,7 +13,8 @@ browser rendering.
 
 ## Pages
 
-The root is a summary. Report sections are available at /system, /cpu,
+The root is the privacy-safe sale summary and `/sale-report` is its printable,
+standalone HTML form. Report sections are available at /system, /cpu,
 /memory, /firmware, /motherboard, /pci, /usb, /graphics, /storage, /network,
 /sensors, /power, and /windows. /benchmarks explains why remote benchmark
 execution is deferred, /export shows a redacted JSON export, and /about
@@ -26,7 +27,9 @@ All API responses are JSON:
 | Endpoint | Report value |
 | --- | --- |
 | /api/v1/health | Service state, API version, report availability and generation time |
-| /api/v1/report | Complete schema 1.0 report object |
+| /api/v1/report | Complete schema 1.1 authoritative report object, normally redacted |
+| /api/v1/profiles | Available profiles and default profile |
+| /api/v1/report/sale, /detailed, /full | Redacted profile JSON |
 | /api/v1/system ... /api/v1/windows | Corresponding top-level report value |
 
 Unknown API paths return a JSON 404. A missing or malformed report returns
